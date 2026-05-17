@@ -1,0 +1,94 @@
+DOCUMENT_ID: AI-GOVERNANCE-CDSS-2026
+VERSION: 2026.1
+GOVERNANCE_OWNER: AI Clinical Governance Committee
+APPROVED_FOR: cardiologist, clinical informatics, AI governance, CDSS_ADMIN
+PATIENT_FACING: false
+CLASSIFICATION: INTERNAL_AI_GOVERNANCE
+
+================================================================================
+CDSS AI MODEL GOVERNANCE POLICY
+================================================================================
+
+SECTION 1: PURPOSE
+This document defines the governance framework for AI-generated clinical
+decision support within the CDSS platform. It establishes rules for model
+use, output validation, human oversight, audit, and bias monitoring.
+
+SECTION 2: MODEL REGISTRY REQUIREMENTS
+All language models used for clinical inference must be registered in the
+Model Registry with the following metadata: model name and version, intended
+clinical use cases, training data summary, known limitations and failure modes,
+validation dataset and performance metrics (sensitivity, specificity, AUC),
+bias evaluation report across demographic subgroups, and approval status.
+
+Models must be re-evaluated and re-approved when: a new model version is
+deployed, clinical guidelines change materially, or performance drift is
+detected via ongoing monitoring.
+
+SECTION 3: CONFIDENCE SCORING FRAMEWORK
+Every AI-generated recommendation must carry a confidence score between 0 and 1.
+High confidence (≥0.80): recommendation supported by multiple retrieved
+guideline passages with high similarity scores; no safety flags raised.
+Medium confidence (0.60–0.79): recommendation partially supported; one or more
+advisory flags raised; enhanced human review recommended.
+Low confidence (<0.60): insufficient guideline evidence retrieved; safety flags
+present; mandatory human review and independent clinical verification.
+Zero confidence: safety gate blocked the output; recommendation must not be
+shown to clinical end users without explicit cardiologist override.
+
+SECTION 4: SAFETY GATE POLICY
+The safety gate must evaluate every AI output before it is returned to the
+API consumer. The safety gate checks include: allergy conflict detection,
+contraindication cross-reference, renal dose threshold validation, haemodynamic
+instability flags, and LOINC-based lab threshold checks.
+
+A blocked output (confidence = 0) must never be used for clinical action.
+The blocking reason must be logged in the immutable audit trail.
+Cardiologist override of a blocked output requires a mandatory free-text note
+and is subject to governance review within 24 hours.
+
+SECTION 5: HUMAN-IN-THE-LOOP REQUIREMENTS
+All AI clinical recommendations for active patient care must pass through a
+human review node before they are entered into the clinical record or used to
+guide a care action. The reviewing clinician must be a registered cardiologist
+or senior clinical officer with relevant specialty competence.
+
+The human review node must capture: reviewer identity and role, timestamp of
+review, action taken (approve, reject, or edit), and free-text clinical
+rationale. These records are immutable once written.
+
+The system must not allow automatic approval or bypass of the human review
+step for ACS pathways. Emergency pathways (STEMI, cardiac arrest) may use
+expedited review with immediate senior clinician notification.
+
+SECTION 6: BIAS AND FAIRNESS MONITORING
+AI output must be monitored for differential performance across: age groups
+(particularly ≥75 years), sex, ethnicity, and renal function stratum.
+Quarterly bias reports must be reviewed by the AI Governance Committee.
+If statistically significant performance disparities are detected, the affected
+model must be suspended from clinical use until root cause analysis is complete.
+
+SECTION 7: HALLUCINATION DETECTION
+The RAG pipeline must log the similarity score of each retrieved document.
+If all retrieved documents have similarity score <0.3, the output must be
+flagged as potentially hallucinated and presented with an explicit warning.
+Prompt engineering must include explicit instructions to the model to decline
+to answer rather than speculate when evidence is insufficient.
+
+SECTION 8: OUTPUT AUDITABILITY REQUIREMENTS
+Every AI inference must be associated with a correlation ID traceable to the
+original patient encounter. The audit record must include: input prompt
+summary, retrieved evidence document IDs and scores, model name and version,
+token usage, inference latency, safety gate result, confidence score, and
+final decision status. Audit records are immutable (WORM policy).
+
+SECTION 9: INCIDENT REPORTING
+Any AI recommendation that is identified as clinically incorrect, harmful, or
+potentially harmful must be reported to the AI Governance Committee within 4
+hours of identification. A root cause analysis report must be completed within
+5 working days. Repeated incidents of the same type trigger mandatory model
+suspension pending retraining or guideline update.
+
+================================================================================
+END OF DOCUMENT – AI-GOVERNANCE-CDSS-2026
+================================================================================

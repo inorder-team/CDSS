@@ -1,0 +1,133 @@
+DOCUMENT_ID: NEPHRO-CKD-ACS-2026
+VERSION: 2026.1
+GOVERNANCE_OWNER: Nephrology and Cardiology Joint Clinical Governance Committee
+APPROVED_FOR: cardiologist, nephrologist, clinical informatics
+PATIENT_FACING: false
+CLASSIFICATION: INTERNAL_CLINICAL_GUIDELINE
+
+================================================================================
+GUIDELINE: CHRONIC KIDNEY DISEASE (CKD) IN ACUTE CORONARY SYNDROME MANAGEMENT
+================================================================================
+
+SECTION 1: INTRODUCTION
+Chronic kidney disease (CKD) is present in approximately 30–40% of patients
+with ACS and is an independent predictor of short and long-term mortality.
+Patients with CKD and ACS present unique challenges: increased ischaemic risk,
+higher bleeding risk, contraindications to renally-cleared agents, and
+contrast-associated nephropathy risk during invasive procedures.
+
+SECTION 2: CKD STAGING RELEVANT TO ACS MANAGEMENT
+Stage 3a: eGFR 45–59 mL/min/1.73m² – mild-moderate reduction
+Stage 3b: eGFR 30–44 mL/min/1.73m² – moderate-severe reduction
+Stage 4:  eGFR 15–29 mL/min/1.73m² – severe reduction
+Stage 5:  eGFR <15 mL/min/1.73m²   – kidney failure
+
+Patient with eGFR 42 mL/min/1.73m² is Stage 3b CKD: moderate-to-severe.
+
+SECTION 3: ANTIPLATELET THERAPY IN CKD
+CKD does not contraindicate dual antiplatelet therapy (DAPT) in NSTEMI.
+
+Aspirin:
+If aspirin allergy documented, do not use aspirin. Refer to antiplatelet
+allergy protocol as per CARDIO-ACS-NSTEMI-2026.
+
+P2Y12 Inhibitors in CKD:
+- Ticagrelor: Generally safe across CKD stages including eGFR 30–60.
+  No significant renal clearance of active metabolite.
+  Preferred in eGFR 30–60 for predictable antiplatelet effect.
+- Clopidogrel: Safe in CKD. Active metabolite not renally cleared.
+  May have reduced efficacy due to CYP2C19 variability.
+  Suitable alternative especially in aspirin allergy.
+- Prasugrel: CONTRAINDICATED in eGFR <30. Use with caution eGFR 30–60.
+  Avoid in elderly (≥75 years), low weight (<60kg), or prior stroke/TIA.
+
+For this patient profile (eGFR 42, aspirin allergy, prior PCI, NSTEMI):
+Ticagrelor 180mg loading dose then 90mg twice daily is the preferred
+P2Y12 inhibitor. Clopidogrel is an acceptable alternative.
+Prasugrel should be avoided given borderline renal function.
+
+SECTION 4: ANTICOAGULATION IN CKD
+Fondaparinux 2.5mg subcutaneous daily:
+- Safe in eGFR 30–50 with careful monitoring
+- Contraindicated if eGFR <20
+- No significant dose adjustment required for eGFR 30–50
+
+Enoxaparin in CKD:
+- eGFR 30–60: Standard dosing 1mg/kg twice daily; monitor anti-Xa levels
+- eGFR <30: Reduce to 1mg/kg once daily or use unfractionated heparin (UFH)
+- eGFR <15: Use UFH only (fully monitored with aPTT)
+
+Unfractionated Heparin (UFH):
+- Can be used across all CKD stages
+- Requires aPTT monitoring
+- Preferred pre-PCI in severe CKD (eGFR <30)
+
+SECTION 5: CONTRAST-ASSOCIATED ACUTE KIDNEY INJURY (CA-AKI)
+Risk is increased in CKD (eGFR <60) undergoing coronary angiography.
+Prevention strategies:
+- Hydration: IV isotonic saline 1 mL/kg/h for 12 hours pre and post procedure
+- Minimise contrast volume: use iso-osmolar or low-osmolar contrast
+- Withhold nephrotoxic agents: NSAIDs, aminoglycosides, ACE inhibitors/ARBs
+  may be withheld 24–48 hours peri-procedure (restore when haemodynamically stable)
+- Withhold metformin 48 hours post-contrast if eGFR <45
+
+SECTION 6: RENAL FUNCTION MONITORING IN ACS WITH CKD
+- Serum creatinine and eGFR: Daily during admission
+- Electrolytes (K+, Na+, bicarbonate): Daily; more frequently if on ACE-I/ARB
+- Potassium management: Target K+ 3.5–5.0 mmol/L
+  For K+ 4.8 mmol/L (borderline high): avoid additional K+ supplementation,
+  withhold K+ sparing agents if eGFR <45, review ACE-I/ARB dose
+- Urine output: Monitor for oliguria (sign of AKI)
+- Consider nephrology review if eGFR <30 or deteriorating
+
+SECTION 7: ACE INHIBITORS AND ARBs IN CKD-ACS
+Benefits: Reduce cardiovascular mortality and slow CKD progression.
+Indications in NSTEMI: LVEF <40%, diabetes, anterior MI, hypertension.
+
+Safe initiation in CKD:
+- Start at low dose; uptitrate gradually
+- Monitor eGFR and K+ at 1–2 weeks after initiation or dose change
+- Accept up to 20–30% rise in creatinine if K+ remains <5.5 mmol/L
+- Withhold if K+ >5.5 mmol/L or eGFR falls >30% from baseline
+- For this patient (eGFR 42, K+ 4.8): initiate ACE-I at low dose
+  with close renal monitoring; avoid if K+ rises above 5.0 mmol/L
+
+SECTION 8: STATIN THERAPY IN CKD
+High-intensity statins are recommended in ACS regardless of CKD stage.
+Atorvastatin 40–80mg: No dose adjustment required in CKD.
+Rosuvastatin 20–40mg: Use with caution in severe CKD (eGFR <30).
+No renal dose adjustment for atorvastatin; preferred statin in CKD.
+If patient already on atorvastatin: maximise to 80mg daily for NSTEMI.
+
+SECTION 9: DIABETES MANAGEMENT IN CKD-ACS
+Metformin:
+- Withhold if eGFR <45 mL/min/1.73m² (risk of lactic acidosis)
+- For eGFR 42: metformin should be withheld acutely
+- Restart only when renal function stable and eGFR ≥45
+
+SGLT2 Inhibitors:
+- eGFR 42: Some SGLT2 inhibitors approved down to eGFR 30–45 (check product label)
+- Hold peri-procedure and post-contrast for 48 hours (euglycaemic DKA risk)
+- Resume when haemodynamically stable and eating normally
+
+Blood glucose targets during ACS: 7.8–10 mmol/L
+Hypoglycaemia increases cardiovascular mortality: avoid tight control acutely.
+
+SECTION 10: SPECIAL CONSIDERATIONS FOR THIS PATIENT PROFILE
+For a patient aged 68, male, NSTEMI, eGFR 42, aspirin allergy, K+ 4.8,
+prior PCI, type-2 diabetes:
+
+Priority safety points:
+1. No aspirin (documented allergy) – use ticagrelor as P2Y12 inhibitor
+2. Avoid prasugrel (borderline renal function, prior PCI anatomy unknown)
+3. Fondaparinux preferred anticoagulant (eGFR 42 permits use; monitor)
+4. Monitor K+ closely – borderline high 4.8; avoid additional K+ load
+5. Withhold metformin acutely (eGFR 42 <45 threshold)
+6. Hold SGLT2 inhibitor peri-procedure if applicable
+7. Daily renal function monitoring
+8. Hydration protocol if proceeding to coronary angiography
+9. Nephrology review recommended given CKD Stage 3b in acute setting
+
+================================================================================
+END OF DOCUMENT – NEPHRO-CKD-ACS-2026
+================================================================================

@@ -1,0 +1,275 @@
+{
+  "realm": "cdss",
+  "enabled": true,
+  "displayName": "CDSS Clinical Platform",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "accessTokenLifespan": 900,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionMaxLifespanEnabled": false,
+  "roles": {
+    "realm": [
+      { "name": "CARDIOLOGIST",    "description": "Senior clinician – full CDSS access including recommendations" },
+      { "name": "CLINICIAN",       "description": "General clinician – clinical read/write access" },
+      { "name": "CDSS_NURSE",      "description": "Nursing staff – patient and encounter access" },
+      { "name": "CDSS_PHARMACIST", "description": "Pharmacist – medication read/write" },
+      { "name": "CDSS_ADMIN",      "description": "Platform administrator – full access including audit" },
+      { "name": "CDSS_MANAGEMENT", "description": "Management – audit log read only" },
+      { "name": "CDSS_PATIENT",    "description": "Patient portal – own record read only" },
+      { "name": "CDSS_USER",       "description": "Default authenticated user – minimal read access" },
+      { "name": "HMIS",            "description": "Hospital Management Information System – system client role" },
+      { "name": "EMR",             "description": "Electronic Medical Records system – system client role" },
+      { "name": "PHR",             "description": "Personal Health Records system – system client role" },
+      { "name": "DHA",             "description": "Dubai Health Authority / national health authority – audit access" }
+    ]
+  },
+  "groups": [
+    {
+      "name": "clinical-group",
+      "realmRoles": ["CARDIOLOGIST", "CLINICIAN"],
+      "attributes": { "default_scopes": ["cdss:patient:read", "cdss:recommendation:create", "cdss:encounter:read"] }
+    },
+    {
+      "name": "nursing-group",
+      "realmRoles": ["CDSS_NURSE"],
+      "attributes": { "default_scopes": ["cdss:patient:read", "cdss:encounter:read", "cdss:encounter:write"] }
+    },
+    {
+      "name": "pharmacist-group",
+      "realmRoles": ["CDSS_PHARMACIST"],
+      "attributes": { "default_scopes": ["cdss:medication:read", "cdss:medication:write"] }
+    },
+    {
+      "name": "management-group",
+      "realmRoles": ["CDSS_MANAGEMENT"],
+      "attributes": { "default_scopes": ["cdss:audit:read"] }
+    },
+    {
+      "name": "patient-group",
+      "realmRoles": ["CDSS_PATIENT"],
+      "attributes": { "default_scopes": ["cdss:patient:read", "cdss:recommendation:read"] }
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "cdss-api",
+      "name": "CDSS FastAPI Backend",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "redirectUris": ["http://localhost:8000/*", "https://cdss.your-domain.com/*"],
+      "webOrigins": ["+"],
+      "defaultClientScopes": ["openid", "profile", "email", "roles"],
+      "optionalClientScopes": ["address", "phone", "offline_access"]
+    },
+    {
+      "clientId": "trust-care-hmis-client",
+      "name": "Trust Care HMIS",
+      "description": "Hospital Management Information System – machine-to-machine",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "attributes": { "source_system": "HMIS", "organization_id": "trust-care-hospital" },
+      "defaultClientScopes": ["openid", "roles"]
+    },
+    {
+      "clientId": "trust-care-emr-client",
+      "name": "Trust Care EMR",
+      "description": "Electronic Medical Records – machine-to-machine",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "attributes": { "source_system": "EMR", "organization_id": "trust-care-hospital" },
+      "defaultClientScopes": ["openid", "roles"]
+    },
+    {
+      "clientId": "trust-care-phr-client",
+      "name": "Trust Care PHR",
+      "description": "Personal Health Records portal – machine-to-machine",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "attributes": { "source_system": "PHR", "organization_id": "trust-care-hospital" },
+      "defaultClientScopes": ["openid", "roles"]
+    },
+    {
+      "clientId": "dha-client",
+      "name": "Dubai Health Authority",
+      "description": "National health authority – audit access only",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "attributes": { "source_system": "DHA", "organization_id": "dubai-health-authority" },
+      "defaultClientScopes": ["openid", "roles"]
+    },
+    {
+      "clientId": "grafana",
+      "name": "Grafana Dashboard",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "redirectUris": ["http://localhost:3000/*"]
+    }
+  ],
+  "clientScopes": [
+    { "name": "cdss:patient:read",          "protocol": "openid-connect", "description": "Read patient records" },
+    { "name": "cdss:patient:write",         "protocol": "openid-connect", "description": "Create/update patient records" },
+    { "name": "cdss:encounter:read",        "protocol": "openid-connect", "description": "Read encounters" },
+    { "name": "cdss:encounter:write",       "protocol": "openid-connect", "description": "Create/update encounters" },
+    { "name": "cdss:recommendation:read",   "protocol": "openid-connect", "description": "Read CDSS recommendations" },
+    { "name": "cdss:recommendation:create", "protocol": "openid-connect", "description": "Request CDSS recommendations" },
+    { "name": "cdss:medication:read",       "protocol": "openid-connect", "description": "Read medication/drug info" },
+    { "name": "cdss:medication:write",      "protocol": "openid-connect", "description": "Prescribe/update medications" },
+    { "name": "cdss:audit:read",            "protocol": "openid-connect", "description": "Read audit logs" },
+    { "name": "cdss:admin",                 "protocol": "openid-connect", "description": "Full administrative access" }
+  ],
+  "users": [
+    {
+      "username": "doctor1",
+      "email": "doctor1@trust-care.local",
+      "firstName": "David", "lastName": "Carter",
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "Doctor1@cdss!", "temporary": false }],
+      "realmRoles": ["CARDIOLOGIST"],
+      "groups": ["/clinical-group"],
+      "attributes": { "organization_id": ["trust-care-hospital"], "source_system": ["EMR"] }
+    },
+    {
+      "username": "doctor2",
+      "email": "doctor2@trust-care.local",
+      "firstName": "Priya", "lastName": "Sharma",
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "Doctor2@cdss!", "temporary": false }],
+      "realmRoles": ["CLINICIAN"],
+      "groups": ["/clinical-group"],
+      "attributes": { "organization_id": ["trust-care-hospital"], "source_system": ["EMR"] }
+    },
+    {
+      "username": "nurse1",
+      "email": "nurse1@trust-care.local",
+      "firstName": "Sarah", "lastName": "Ahmed",
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "Nurse1@cdss!", "temporary": false }],
+      "realmRoles": ["CDSS_NURSE"],
+      "groups": ["/nursing-group"],
+      "attributes": { "organization_id": ["trust-care-hospital"] }
+    },
+    {
+      "username": "pharmacist1",
+      "email": "pharmacist1@trust-care.local",
+      "firstName": "James", "lastName": "Osei",
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "Pharma1@cdss!", "temporary": false }],
+      "realmRoles": ["CDSS_PHARMACIST"],
+      "groups": ["/pharmacist-group"],
+      "attributes": { "organization_id": ["trust-care-hospital"] }
+    },
+    {
+      "username": "admin1",
+      "email": "admin1@trust-care.local",
+      "firstName": "Admin", "lastName": "User",
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "Admin1@cdss!", "temporary": false }],
+      "realmRoles": ["CDSS_ADMIN"],
+      "groups": ["/management-group"],
+      "attributes": { "organization_id": ["trust-care-hospital"] }
+    },
+    {
+      "username": "user1",
+      "email": "user1@trust-care.local",
+      "firstName": "Patient", "lastName": "One",
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "User1@cdss!", "temporary": false }],
+      "realmRoles": ["CDSS_PATIENT"],
+      "groups": ["/patient-group"],
+      "attributes": { "organization_id": ["trust-care-hospital"] }
+    }
+  ],
+  "protocolMappers": [
+    {
+      "name": "organization_id mapper",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-attribute-mapper",
+      "config": {
+        "user.attribute": "organization_id",
+        "claim.name": "organization_id",
+        "jsonType.label": "String",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "true"
+      }
+    },
+    {
+      "name": "source_system mapper",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-attribute-mapper",
+      "config": {
+        "user.attribute": "source_system",
+        "claim.name": "source_system",
+        "jsonType.label": "String",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "true"
+      }
+    },
+    {
+      "name": "groups mapper",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-group-membership-mapper",
+      "config": {
+        "claim.name": "groups",
+        "full.path": "false",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "true"
+      }
+    },
+    {
+      "name": "realm roles mapper",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-realm-role-mapper",
+      "config": {
+        "claim.name": "realm_access.roles",
+        "jsonType.label": "String",
+        "multivalued": "true",
+        "id.token.claim": "true",
+        "access.token.claim": "true"
+      }
+    }
+  ]
+}

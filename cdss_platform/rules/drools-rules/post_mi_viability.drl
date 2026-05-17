@@ -1,0 +1,65 @@
+package rules
+
+import com.inorder.clinical.acs.model.AcsCase;
+import com.inorder.clinical.acs.model.Recommendation;
+import com.inorder.clinical.acs.model.RecommendationType;
+
+rule "Delayed STEMI presentation with LV dysfunction - viability assessment needed"
+    salience 55
+    no-loop true
+when
+    $case : AcsCase(
+        delayedPresentation == Boolean.TRUE,
+        lvDysfunction == Boolean.TRUE,
+        viableMyocardium == null
+    )
+    not Recommendation(code == "POSTMI-LVD-VIABILITY-ASSESSMENT")
+then
+    insert(new Recommendation(
+        RecommendationType.VIABILITY_ASSESSMENT,
+        "POSTMI-LVD-VIABILITY-ASSESSMENT",
+        "Perform viability assessment using MRI, PET, or rest thallium scan.",
+        "Delayed presentation with LV dysfunction requires viability assessment before late revascularisation planning.",
+        "After stabilisation"
+    ));
+end
+
+rule "Delayed STEMI presentation with LV dysfunction - viable myocardium"
+    salience 54
+    no-loop true
+when
+    $case : AcsCase(
+        delayedPresentation == Boolean.TRUE,
+        lvDysfunction == Boolean.TRUE,
+        viableMyocardium == Boolean.TRUE
+    )
+    not Recommendation(code == "POSTMI-LVD-VIABLE-CAG-PCI")
+then
+    insert(new Recommendation(
+        RecommendationType.CAG_PCI_IF_VIABLE,
+        "POSTMI-LVD-VIABLE-CAG-PCI",
+        "Plan diagnostic CAG and PCI if needed.",
+        "Viable myocardium is present after delayed presentation with LV dysfunction.",
+        "Planned/elective after assessment"
+    ));
+end
+
+rule "Delayed STEMI presentation with LV dysfunction - non viable myocardium"
+    salience 53
+    no-loop true
+when
+    $case : AcsCase(
+        delayedPresentation == Boolean.TRUE,
+        lvDysfunction == Boolean.TRUE,
+        viableMyocardium == Boolean.FALSE
+    )
+    not Recommendation(code == "POSTMI-LVD-NONVIABLE-GDMT-ICD-CRT")
+then
+    insert(new Recommendation(
+        RecommendationType.GDMT_ICD_CRT_CONSIDERATION,
+        "POSTMI-LVD-NONVIABLE-GDMT-ICD-CRT",
+        "Use GDMT and consider ICD/CRT at 1 month according to eligibility.",
+        "Non-viable myocardium after delayed presentation with LV dysfunction.",
+        "GDMT now; device consideration at 1 month"
+    ));
+end

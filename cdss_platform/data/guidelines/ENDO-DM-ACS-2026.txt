@@ -1,0 +1,103 @@
+DOCUMENT_ID: ENDO-DM-ACS-2026
+VERSION: 2026.1
+GOVERNANCE_OWNER: Endocrinology and Cardiology Joint Clinical Governance Committee
+APPROVED_FOR: cardiologist, endocrinologist, clinical informatics
+PATIENT_FACING: false
+CLASSIFICATION: INTERNAL_CLINICAL_GUIDELINE
+
+================================================================================
+GUIDELINE: TYPE 2 DIABETES MELLITUS IN ACUTE CORONARY SYNDROME
+================================================================================
+
+SECTION 1: SCOPE
+This guideline applies to adult patients with pre-existing or newly diagnosed
+type 2 diabetes mellitus (T2DM) presenting with acute coronary syndrome (ACS),
+including NSTEMI. Diabetes is an independent risk factor for adverse
+cardiovascular outcomes and increases in-hospital mortality in ACS.
+
+SECTION 2: GLYCAEMIC MANAGEMENT DURING ACUTE ACS
+Target blood glucose during acute ACS: 7.8–10.0 mmol/L (140–180 mg/dL).
+
+Avoid hypoglycaemia: Blood glucose <4.0 mmol/L is associated with increased
+mortality in ACS. Tight glycaemic control (4–6 mmol/L) is harmful acutely.
+
+Avoid hyperglycaemia: Sustained blood glucose >14 mmol/L worsens outcomes
+and increases infection risk.
+
+Blood glucose monitoring: Every 4–6 hours during acute admission.
+If on insulin infusion: hourly monitoring.
+
+SECTION 3: ORAL ANTIDIABETIC AGENTS IN ACUTE ACS
+
+Metformin:
+- WITHHOLD during acute ACS hospitalisation if:
+  a) eGFR <45 mL/min/1.73m² (risk of lactic acidosis)
+  b) Haemodynamic instability
+  c) Planned contrast administration (withhold 48 hours post-contrast)
+  d) Significant hepatic impairment
+- Resume when patient is stable, eating, eGFR ≥45, and ≥48h post-contrast
+
+SGLT2 Inhibitors (Empagliflozin, Dapagliflozin, Canagliflozin):
+- Withhold during acute ACS hospitalisation due to:
+  a) Risk of euglycaemic diabetic ketoacidosis (DKA) with stress/reduced intake
+  b) Risk of volume depletion compounding haemodynamic instability
+  c) Peri-procedural risk of DKA with contrast use
+- Resume after clinical stability, normal diet, renal function confirmed
+- Note: SGLT2 inhibitors have established cardiovascular and renal benefit
+  in T2DM – important to restart post-discharge
+
+Sulphonylureas (Glipizide, Gliclazide):
+- Withhold during acute ACS (high hypoglycaemia risk with variable intake)
+- Restart only when eating regularly
+
+DPP-4 Inhibitors (Sitagliptin, Saxagliptin):
+- Generally safe to continue acutely; low hypoglycaemia risk
+- Dose-adjust saxagliptin and sitagliptin for renal impairment
+- Avoid saxagliptin in heart failure (FDA black box warning)
+
+GLP-1 Receptor Agonists (Liraglutide, Semaglutide):
+- Generally safe; low hypoglycaemia risk
+- May temporarily reduce food intake (nausea); monitor for weight loss
+- Established cardiovascular benefit: restart post-discharge
+
+SECTION 4: INSULIN MANAGEMENT IN ACUTE ACS
+Variable rate insulin infusion (VRII) indications:
+- Blood glucose consistently >14 mmol/L
+- Nil-by-mouth patients
+- Patients on high-dose steroids
+- Ketosis or DKA (refer to DKA pathway)
+
+Basal-bolus insulin subcutaneous:
+- For patients eating and blood glucose suboptimally controlled
+- Use 50% of total daily dose as basal (e.g. glargine once daily)
+- Use rapid-acting insulin with meals proportional to carbohydrate
+
+SECTION 5: LONG-TERM CARDIOVASCULAR BENEFIT – POST-ACS DIABETES MANAGEMENT
+Post-discharge diabetes management should prioritise agents with proven
+cardiovascular benefit:
+
+SGLT2 Inhibitors: Reduce hospitalisation for heart failure, renal progression,
+and in some trials reduce MACE. Resume as soon as clinically appropriate.
+
+GLP-1 Receptor Agonists (liraglutide, semaglutide): Reduce MACE in T2DM
+with established cardiovascular disease. Consider initiating or continuing.
+
+Cardiovascular targets post-ACS with T2DM:
+- HbA1c: 53–58 mmol/mol (7.0–7.5%) for most patients
+- For frail/elderly or high hypoglycaemia risk: HbA1c up to 69 mmol/mol (8.5%)
+- Blood pressure: <130/80 mmHg
+- LDL cholesterol: <1.4 mmol/L with high-intensity statin
+
+SECTION 6: PATIENT-SPECIFIC NOTES (eGFR 42, T2DM, NSTEMI)
+For a patient with eGFR 42, T2DM, and NSTEMI:
+- Metformin: WITHHOLD (eGFR 42 < 45 threshold)
+- SGLT2 inhibitor: WITHHOLD acutely; restart post-discharge if eGFR improves
+  (check product label for eGFR threshold – typically ≥30 or ≥45 depending on agent)
+- Insulin: Use if blood glucose >14 mmol/L or patient nil-by-mouth
+- Monitor blood glucose 4-hourly minimum
+- HbA1c at admission (if not done recently)
+- Refer to diabetes team for inpatient review
+
+================================================================================
+END OF DOCUMENT – ENDO-DM-ACS-2026
+================================================================================

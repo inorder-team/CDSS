@@ -1,0 +1,178 @@
+DOCUMENT_ID: CARDIO-ACS-NSTEMI-2026
+VERSION: 2026.1
+GOVERNANCE_OWNER: Cardiology Clinical Governance Committee
+APPROVED_FOR: cardiologist, clinical informatics, AI governance
+PATIENT_FACING: false
+CLASSIFICATION: INTERNAL_CLINICAL_GUIDELINE
+LAST_REVIEWED: 2026-01-15
+
+================================================================================
+APPROVED CARDIOLOGY GUIDELINE: ACS / NSTEMI PATHWAY
+================================================================================
+
+SECTION 1: SCOPE AND PURPOSE
+This guideline provides evidence-based recommendations for the assessment and
+management of Non-ST Elevation Myocardial Infarction (NSTEMI) and Non-ST
+Elevation Acute Coronary Syndrome (NSTE-ACS). It applies to adult patients
+presenting with suspected ACS without ST elevation on a 12-lead ECG.
+
+SECTION 2: NSTEMI RISK STRATIFICATION
+Patients with suspected non-ST elevation acute coronary syndrome should receive
+clinician-led risk stratification using symptoms, ECG findings, serial troponin
+results, haemodynamic status, renal function, bleeding risk, allergies, and
+relevant comorbidities.
+
+High-risk features include: dynamic ECG changes (new ST depression ≥0.5mm,
+transient ST elevation, new T-wave inversion), recurrent or refractory chest
+pain at rest, signs of heart failure (pulmonary oedema, new or worsening
+mitral regurgitation), haemodynamic instability (systolic BP <90mmHg, shock),
+sustained ventricular arrhythmia, rising troponin above the 99th percentile
+URL, and prior coronary revascularisation (PCI or CABG).
+
+Intermediate-risk features: diabetes mellitus, chronic kidney disease
+(eGFR <60 mL/min/1.73m²), ejection fraction <40%, early post-MI angina,
+prior PCI/CABG without current haemodynamic compromise, elevated GRACE score.
+
+GRACE Score should be calculated for all NSTEMI patients. A GRACE score >140
+identifies high-risk patients who benefit from early invasive strategy
+(coronary angiography within 24 hours).
+
+SECTION 3: INITIAL MANAGEMENT – ALL NSTEMI PATIENTS
+All patients should be assessed for:
+- Oxygen if SpO2 <94%; avoid routine oxygen if SpO2 ≥94%
+- IV access and continuous cardiac monitoring
+- 12-lead ECG within 10 minutes and at 3, 6 hours (or with symptom change)
+- Serial high-sensitivity troponin at 0h and 3h (or 0h and 1h with hs-cTnI)
+- Full blood count, renal function, electrolytes, coagulation, lipid profile
+- Chest X-ray (portable acceptable if haemodynamically unstable)
+- Echocardiography (ECHO) should be performed in all NSTEMI patients
+
+SECTION 4: ANTIPLATELET THERAPY – SAFETY CRITICAL BOUNDARY
+Dual antiplatelet therapy (DAPT) is the cornerstone of NSTEMI management
+to prevent stent thrombosis and recurrent coronary events.
+
+Standard DAPT regimen: Aspirin 300mg loading dose followed by 75mg daily
+maintenance, PLUS a P2Y12 inhibitor.
+
+ASPIRIN ALLERGY PROTOCOL (CRITICAL SAFETY BOUNDARY):
+If aspirin allergy is documented, the following protocol applies:
+1. Aspirin must NOT be administered or recommended as a direct action
+2. Desensitisation may be considered in selected patients by a specialist
+   allergist in conjunction with the cardiology team
+3. Clopidogrel monotherapy (300–600mg loading, 75mg maintenance) may be used
+   as an alternative antiplatelet agent
+4. Ticagrelor 180mg loading then 90mg twice daily as P2Y12 inhibitor
+   (if no contraindication to ticagrelor)
+5. Any deviation from standard DAPT requires cardiologist validation and
+   a documented alternative plan in the clinical record
+6. The recommendation must not state aspirin as a direct action without
+   cardiologist validation and a documented alternative plan
+
+P2Y12 Inhibitor Selection:
+- Ticagrelor 180mg loading dose, then 90mg twice daily (preferred for NSTEMI
+  managed conservatively or with PCI if not on anticoagulation)
+- Prasugrel 60mg loading dose, then 10mg daily (for NSTEMI undergoing PCI;
+  avoid in patients ≥75 years, weight <60kg, or prior stroke/TIA)
+- Clopidogrel 300–600mg loading dose, then 75mg daily (when ticagrelor and
+  prasugrel are contraindicated or not available)
+
+Renal Impairment Considerations (CKD):
+- For patients with eGFR 30–60 mL/min/1.73m²: dose adjustment may be required
+  for some antithrombotics; ticagrelor is generally safe
+- For patients with eGFR <30 mL/min/1.73m²: avoid prasugrel; use ticagrelor
+  or clopidogrel; seek nephrology review
+- Potassium monitoring is essential with ACE inhibitors/ARBs in CKD
+
+SECTION 5: ANTICOAGULATION
+All NSTEMI patients should receive anticoagulation unless contraindicated.
+Options include:
+- Fondaparinux 2.5mg subcutaneous once daily (preferred; lower bleeding risk)
+- Enoxaparin 1mg/kg subcutaneous twice daily (dose-reduce to once daily if
+  eGFR <30 or use unfractionated heparin with monitoring)
+- Unfractionated heparin (UFH) IV infusion (preferred pre-PCI if immediate
+  intervention planned)
+- Bivalirudin (alternative to UFH + GPI during PCI)
+
+SECTION 6: INVASIVE STRATEGY (CORONARY ANGIOGRAPHY)
+High-risk NSTEMI (GRACE >140 or high-risk features): Coronary angiography
+within 24 hours of presentation.
+
+Intermediate-risk NSTEMI (GRACE 109–140): Coronary angiography within 72 hours.
+
+Low-risk NSTEMI: Consider non-invasive ischaemia testing first; angiography
+if positive or symptom-driven.
+
+Revascularisation strategy (PCI vs CABG): Determined by coronary anatomy,
+SYNTAX score, left ventricular function, comorbidities, and Heart Team
+discussion. Prior PCI is relevant to the complexity of the anatomy.
+
+SECTION 7: ADJUNCT PHARMACOTHERAPY
+Beta-blockers:
+- Oral beta-blockers should be initiated within 24 hours of NSTEMI in
+  haemodynamically stable patients (target heart rate 50–70 bpm)
+- Avoid if: acute decompensated heart failure, significant bradycardia (<50),
+  heart block >1st degree, or systolic BP <100 mmHg
+
+Statins (High-intensity):
+- High-intensity statin therapy should be initiated regardless of baseline LDL
+- Atorvastatin 40–80mg or Rosuvastatin 20–40mg daily
+- If already on statin, maximise dose
+
+ACE Inhibitors / ARBs:
+- Initiate ACE inhibitor (or ARB if intolerant) in all NSTEMI patients with
+  LVEF <40%, diabetes, anterior MI, or hypertension
+- Monitor renal function and potassium closely, especially in CKD
+
+Nitrates:
+- Sublingual or IV nitrates for ongoing ischaemic pain
+- Avoid if systolic BP <90 mmHg, right ventricular infarction suspected,
+  or phosphodiesterase inhibitor used within 24–48 hours
+
+SECTION 8: DIABETES MANAGEMENT IN NSTEMI
+Hyperglycaemia is common in ACS and is associated with worse outcomes.
+Target blood glucose: 7.8–10 mmol/L during acute phase.
+SGLT2 inhibitors should be reviewed (may need to be held peri-procedure
+due to risk of euglycaemic DKA with contrast use). Resume once stable.
+Metformin should be withheld if eGFR <45 or during/after contrast use
+until renal function is confirmed stable.
+
+SECTION 9: MONITORING REQUIREMENTS
+- Continuous ECG monitoring for minimum 24 hours in NSTEMI
+- Serial troponins as per pathway
+- Renal function daily in hospitalised NSTEMI patients on anticoagulation
+- Potassium monitoring: target K+ 4.0–5.0 mmol/L (K+ 4.8 is borderline high;
+  review ACE inhibitor/ARB dosing; avoid additional K+ supplementation)
+- Blood glucose: 4–6 hourly in diabetes patients
+
+SECTION 10: HUMAN REVIEW REQUIREMENT (AI SAFETY)
+All patient-specific ACS recommendations generated by AI decision support
+require cardiologist review before they are entered into the clinical record
+or used for care action. The AI system must present a pending_review status
+and clearly communicate that output is not to be acted upon until reviewed
+and approved by a registered cardiologist or senior clinician.
+
+SECTION 11: DISCHARGE AND SECONDARY PREVENTION
+DAPT duration post-NSTEMI:
+- PCI with drug-eluting stent: Minimum 6–12 months DAPT
+- Medically managed: 12 months DAPT (or as guided by bleeding risk score)
+- Aspirin indefinitely (or alternative if allergy)
+
+Discharge medications checklist:
+☐ Antiplatelet therapy (DAPT or monotherapy per allergy status)
+☐ High-intensity statin
+☐ Beta-blocker (if no contraindication)
+☐ ACE inhibitor / ARB (if indicated)
+☐ Aldosterone antagonist (if LVEF <40% and no significant renal impairment)
+
+Cardiac rehabilitation: Refer all NSTEMI patients to supervised cardiac
+rehabilitation programme prior to or at discharge.
+
+SECTION 12: REFERENCES
+ESC Guidelines for the Management of Acute Coronary Syndromes 2023
+ACC/AHA Guideline for the Diagnosis and Management of UA/NSTEMI
+NICE Guideline NG185: Acute coronary syndromes
+British Cardiovascular Society: ACS Management Standards 2025
+
+================================================================================
+END OF DOCUMENT – CARDIO-ACS-NSTEMI-2026
+================================================================================

@@ -1,0 +1,106 @@
+DOCUMENT_ID: CARDIO-ACS-SUPPORTIVE-2026
+VERSION: 2026.1
+GOVERNANCE_OWNER: Cardiology Clinical Governance Committee
+APPROVED_FOR: cardiologist, clinical informatics, AI governance
+PATIENT_FACING: false
+CLASSIFICATION: INTERNAL_CLINICAL_GUIDELINE
+LAST_REVIEWED: 2026-01-15
+
+================================================================================
+APPROVED CARDIOLOGY GUIDELINE: ACS SUPPORTIVE CARE & SECONDARY PREVENTION
+================================================================================
+
+SECTION 1: OXYGEN AND AIRWAY MANAGEMENT IN ACS
+Routine supplemental oxygen is not recommended for patients with ACS who have
+oxygen saturation (SpO2) ≥94% breathing room air. Supplemental oxygen should
+be administered if SpO2 <94%, respiratory distress is present, or high-risk
+features of haemodynamic compromise exist. Hyperoxia may be harmful in
+uncomplicated MI and should be avoided.
+
+SECTION 2: PAIN AND SYMPTOM MANAGEMENT
+Intravenous morphine or diamorphine may be used for refractory ischaemic chest
+pain not relieved by nitrates. However, morphine may reduce the absorption and
+antiplatelet effect of oral P2Y12 inhibitors (particularly ticagrelor and
+clopidogrel) and should be used judiciously. Consider fentanyl as an
+alternative in patients with renal impairment.
+
+Sublingual glyceryl trinitrate (GTN) 400mcg may be used for acute pain relief.
+IV nitrate infusion may be initiated for persistent pain, hypertension, or
+heart failure, titrating to symptom relief while maintaining systolic BP >90mmHg.
+
+SECTION 3: BLOOD GLUCOSE MANAGEMENT IN ACS WITH DIABETES
+Hyperglycaemia on admission is common and independently associated with worse
+clinical outcomes following NSTEMI, even in patients without known diabetes.
+Target blood glucose range during acute ACS: 7.8 to 10 mmol/L.
+Hypoglycaemia (blood glucose <4 mmol/L) must be avoided.
+
+Insulin infusion is preferred for patients with sustained blood glucose >10
+mmol/L despite oral hypoglycaemic agents. SGLT2 inhibitors should be withheld
+peri-procedurally and during contrast exposure due to risk of euglycaemic
+diabetic ketoacidosis. They may be restarted once the patient is clinically
+stable and eating normally. Metformin should be held during acute illness
+and withheld if eGFR falls below 45 mL/min/1.73m², or if contrast is used,
+until renal function is confirmed stable at 48 hours post-procedure.
+
+SECTION 4: HEART FAILURE COMPLICATING NSTEMI
+Acute heart failure (Killip Class II–IV) complicating NSTEMI requires urgent
+assessment. Echocardiography should be performed urgently to assess LV function
+and identify mechanical complications (VSD, acute MR, free wall rupture).
+Loop diuretics (furosemide IV) should be used for pulmonary oedema.
+ACE inhibitor or ARB should be initiated within 24 hours if systolic BP allows.
+Aldosterone antagonist (eplerenone or spironolactone) should be added if
+LVEF ≤40% and no significant renal impairment or hyperkalaemia.
+Potassium monitoring is critical: target K+ 4.0–5.0 mmol/L.
+If K+ ≥5.5 mmol/L, withhold ACE inhibitor / ARB / aldosterone antagonist
+until corrected.
+
+SECTION 5: ARRHYTHMIA MANAGEMENT IN NSTEMI
+Continuous cardiac monitoring mandatory for minimum 24 hours.
+Ventricular fibrillation: immediate defibrillation per ALS protocol.
+Sustained VT: DC cardioversion if haemodynamically compromised; IV amiodarone
+if haemodynamically stable.
+AF in ACS: rate control preferred acutely; anticoagulation required
+(increased stroke risk); discuss rhythm control strategy electively.
+Complete heart block or high-degree AV block: temporary pacing wire insertion.
+Bradycardia with haemodynamic compromise: atropine IV; temporary pacing if
+unresponsive. Avoid beta-blockers in high-degree block.
+
+SECTION 6: RADIAL VS FEMORAL ACCESS FOR PCI IN NSTEMI
+Radial access is preferred over femoral access for PCI in NSTEMI due to
+significantly lower rates of access site bleeding, vascular complications, and
+mortality benefit in high-risk patients. Femoral access may be required for
+complex procedures (e.g. rotational atherectomy, large bore devices, IABP).
+
+SECTION 7: TRANSITION OF CARE AND DISCHARGE PLANNING
+Minimum monitoring duration: 24 hours continuous ECG post-NSTEMI.
+Prior to discharge, confirm:
+- Stable haemodynamics without recurrent ischaemia
+- Echocardiography performed and documented
+- Discharge medications reconciled (see Section 11, CARDIO-ACS-NSTEMI-2026)
+- Cardiac rehabilitation referral completed
+- Follow-up appointment booked (cardiology at 4–6 weeks)
+- Patient education provided: symptoms of recurrent ACS, when to call 999/112
+- Sick day rules for diabetes medications explained
+
+SECTION 8: SPECIAL POPULATIONS
+Elderly patients (≥75 years): Prasugrel is generally avoided due to excess
+bleeding risk. Ticagrelor at standard dose or clopidogrel preferred.
+Lower thresholds for early invasive strategy in high-risk elderly patients.
+Women with NSTEMI: Higher rates of non-obstructive coronary disease (MINOCA);
+consider vasospasm, spontaneous coronary artery dissection (SCAD). OCT/IVUS
+imaging may be helpful at angiography.
+Patients with prior CABG: Graft disease is common; angiography to evaluate
+native vessels and grafts. Radial access from right arm if LIMA used.
+
+SECTION 9: CONTRAINDICATIONS SUMMARY TABLE
+Nitrates: Avoid if SBP <90 mmHg, RV infarction, PDE5 inhibitor use.
+Aspirin: Avoid if documented allergy; consider desensitisation or alternative.
+Prasugrel: Avoid if prior TIA/stroke, age ≥75, weight <60kg, eGFR <30.
+Morphine: Use with caution; may reduce P2Y12 inhibitor absorption.
+Beta-blockers: Avoid in acute decompensated HF, high-degree block, SBP <90.
+ACE inhibitors: Avoid if hyperkalaemia >5.5, bilateral RAS, pregnancy.
+Fondaparinux: Contraindicated if eGFR <20 mL/min/1.73m².
+
+================================================================================
+END OF DOCUMENT – CARDIO-ACS-SUPPORTIVE-2026
+================================================================================

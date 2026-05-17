@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CDSS Clinical Intelligence Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Serif:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-primary: #0a0e14;
+  --bg-secondary: #0f1420;
+  --bg-card: #131924;
+  --bg-card-hover: #19212e;
+  --bg-panel: #0d1219;
+  --border: #1e2d42;
+  --border-bright: #2a4060;
+  --accent-blue: #00d4ff;
+  --accent-teal: #00e5c3;
+  --accent-amber: #ffb800;
+  --accent-red: #ff4757;
+  --accent-green: #00e676;
+  --accent-purple: #b388ff;
+  --text-primary: #e8edf5;
+  --text-secondary: #8fa3bf;
+  --text-muted: #4a6080;
+  --text-label: #5a7fa0;
+  --status-pending: #ffb800;
+  --status-approved: #00e676;
+  --status-blocked: #ff4757;
+  --status-flagged: #ff8c00;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-sans: 'IBM Plex Sans', sans-serif;
+  --font-serif: 'IBM Plex Serif', serif;
+  --radius: 4px;
+  --radius-lg: 8px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Scanline overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,212,255,0.012) 2px,
+    rgba(0,212,255,0.012) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── Header ── */
+.header {
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-teal));
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--bg-primary);
+  font-family: var(--font-mono);
+  letter-spacing: -1px;
+}
+
+.header-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+}
+
+.header-subtitle {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.header-spacer { flex: 1; }
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.8); }
+}
+
+.compliance-badges {
+  display: flex;
+  gap: 6px;
+}
+
+.badge {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 2px;
+  border: 1px solid;
+  text-transform: uppercase;
+}
+
+.badge-hipaa { color: var(--accent-teal); border-color: var(--accent-teal); opacity: 0.7; }
+.badge-ndhm { color: var(--accent-purple); border-color: var(--accent-purple); opacity: 0.7; }
+
+/* ── Layout ── */
+.app-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  grid-template-rows: 1fr;
+  height: calc(100vh - 56px);
+}
+
+/* ── Left Panel ── */
+.left-panel {
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.left-panel::-webkit-scrollbar { width: 4px; }
+.left-panel::-webkit-scrollbar-track { background: transparent; }
+.left-panel::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+/* ── Right Panel ── */
+.right-panel {
+  overflow-y: auto;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.right-panel::-webkit-scrollbar { width: 4px; }
+.right-panel::-webkit-scrollbar-track { background: transparent; }
+.right-panel::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+/* ── Section headers ── */
+.section-label {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  transition: border-color 0.2s;
+}
+
+.card:hover { border-color: var(--border-bright); }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+/* ── Patient info grid ── */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.info-label {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-label);
+}
+
+.info-value {
+  font-size: 12px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.info-value.mono { font-family: var(--font-mono); font-size: 11px; }
+.info-value.highlight { color: var(--accent-teal); }
+.info-value.warn { color: var(--accent-amber); }
+.info-value.danger { color: var(--accent-red); }
+
+/* ── Tag pills ── */
+.tags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.tag {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 2px;
+  border: 1px solid;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tag-dx { color: #60b8ff; border-color: #1a3a60; background: #0d1f38; }
+.tag-allergy { color: var(--accent-red); border-color: #4a1020; background: #1e0a10; }
+.tag-med { color: var(--accent-teal); border-color: #004d42; background: #001a18; }
+.tag-history { color: var(--accent-purple); border-color: #3a2060; background: #180e30; }
+
+/* ── Lab values ── */
+.lab-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.lab-row:last-child { border-bottom: none; }
+.lab-name { color: var(--text-secondary); }
+.lab-val { font-family: var(--font-mono); color: var(--text-primary); }
+.lab-val.abnormal { color: var(--accent-amber); }
+.lab-val.critical { color: var(--accent-red); }
+
+/* ── Form ── */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-label);
+}
+
+textarea, input[type=text] {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 10px 12px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+textarea:focus, input[type=text]:focus {
+  border-color: var(--accent-blue);
+}
+
+textarea { min-height: 80px; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-teal));
+  color: var(--bg-primary);
+}
+
+.btn-primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; filter: none; }
+
+.btn-approve {
+  background: rgba(0, 230, 118, 0.12);
+  border: 1px solid var(--accent-green);
+  color: var(--accent-green);
+}
+
+.btn-reject {
+  background: rgba(255, 71, 87, 0.12);
+  border: 1px solid var(--accent-red);
+  color: var(--accent-red);
+}
+
+.btn-approve:hover { background: rgba(0, 230, 118, 0.2); }
+.btn-reject:hover { background: rgba(255, 71, 87, 0.2); }
+
+.btn-sm { padding: 6px 12px; font-size: 10px; }
+
+/* ── Loading state ── */
+.pipeline-loading {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 60px 0;
+}
+
+.pipeline-loading.active { display: flex; }
+
+.pipeline-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.pipeline-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  opacity: 0.4;
+  transition: all 0.4s;
+}
+
+.pipeline-step.active {
+  opacity: 1;
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.pipeline-step.done {
+  opacity: 0.7;
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+.step-icon { font-size: 14px; }
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Results ── */
+.results-container { display: none; flex-direction: column; gap: 16px; }
+.results-container.active { display: flex; }
+
+.result-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.correlation-id {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.confidence-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.confidence-label {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-label);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
+}
+
+.confidence-bar-wrap {
+  width: 120px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.confidence-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 1s ease;
+}
+
+.confidence-val {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 42px;
+  text-align: right;
+}
+
+/* ── Status banner ── */
+.status-banner {
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  border-left: 3px solid;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.status-banner.pending { border-color: var(--status-pending); background: rgba(255,184,0,0.06); color: var(--status-pending); }
+.status-banner.approved { border-color: var(--status-approved); background: rgba(0,230,118,0.06); color: var(--status-approved); }
+.status-banner.blocked { border-color: var(--status-blocked); background: rgba(255,71,87,0.1); color: var(--status-blocked); }
+.status-banner.flagged { border-color: var(--status-flagged); background: rgba(255,140,0,0.08); color: var(--status-flagged); }
+
+/* ── Recommendation sections ── */
+.rec-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.rec-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.2);
+  border-bottom: 1px solid var(--border);
+}
+
+.rec-section-icon { font-size: 14px; }
+
+.rec-section-title {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--accent-blue);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.rec-section-body {
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  font-family: var(--font-serif);
+}
+
+.rec-section-body strong { color: var(--text-primary); font-weight: 600; }
+
+/* ── Safety flags ── */
+.safety-flags { display: flex; flex-direction: column; gap: 6px; }
+
+.safety-flag {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  line-height: 1.4;
+}
+
+.flag-critical { background: rgba(255,71,87,0.08); border: 1px solid rgba(255,71,87,0.3); color: #ff6b6b; }
+.flag-warning { background: rgba(255,140,0,0.08); border: 1px solid rgba(255,140,0,0.3); color: var(--accent-amber); }
+.flag-info { background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.2); color: var(--accent-blue); }
+
+/* ── Evidence documents ── */
+.evidence-list { display: flex; flex-direction: column; gap: 8px; }
+
+.evidence-doc {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.evidence-doc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.evidence-doc-id {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--accent-teal);
+  font-weight: 600;
+}
+
+.evidence-score {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.score-bar {
+  width: 60px;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.score-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-teal), var(--accent-blue));
+  border-radius: 2px;
+}
+
+.evidence-snippet {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Human review panel ── */
+.review-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+
+.review-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+
+/* ── Metrics bar ── */
+.metrics-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.metric-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.metric-val {
+  font-size: 22px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.metric-val.teal { color: var(--accent-teal); }
+.metric-val.blue { color: var(--accent-blue); }
+.metric-val.amber { color: var(--accent-amber); }
+.metric-val.green { color: var(--accent-green); }
+
+.metric-label {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+/* ── Pipeline trace ── */
+.pipeline-trace {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.trace-node {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  padding: 3px 8px;
+  border-radius: 2px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.trace-node.done { border-color: var(--accent-teal); color: var(--accent-teal); background: rgba(0,229,195,0.05); }
+.trace-arrow { color: var(--text-muted); font-size: 10px; }
+
+/* ── Toast notifications ── */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9000;
+}
+
+.toast {
+  background: var(--bg-card);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  animation: slideIn 0.3s ease;
+  min-width: 280px;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.toast.success { border-left: 3px solid var(--accent-green); }
+.toast.error { border-left: 3px solid var(--accent-red); }
+.toast.info { border-left: 3px solid var(--accent-blue); }
+
+/* ── Empty state ── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 80px 40px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.empty-icon { font-size: 48px; opacity: 0.3; }
+.empty-title { font-size: 16px; font-weight: 500; color: var(--text-secondary); }
+.empty-sub { font-size: 12px; font-family: var(--font-mono); }
+
+/* ── Animations ── */
+.fade-in { animation: fadeIn 0.4s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Scrollbar ── */
+.right-panel::-webkit-scrollbar { width: 4px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-logo">
+    <div class="logo-icon">CDS</div>
+    <div>
+      <div class="header-title">CDSS Clinical Intelligence Platform</div>
+      <div class="header-subtitle">Production · Enterprise · v1.0.0</div>
+    </div>
+  </div>
+  <div class="header-spacer"></div>
+  <div class="compliance-badges">
+    <span class="badge badge-hipaa">HIPAA</span>
+    <span class="badge badge-ndhm">NDHM</span>
+    <span class="badge badge-ndhm">ABDM</span>
+  </div>
+  <div class="status-pill">
+    <div class="status-dot"></div>
+    System Online
+  </div>
+</header>
+
+<div class="app-layout">
+
+  <!-- Left Panel: Patient Context -->
+  <aside class="left-panel">
+    <div class="section-label">Patient Context</div>
+
+    <!-- Patient Identity -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Patient Identity</span>
+        <span class="tag tag-dx">NSTEMI</span>
+      </div>
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="info-label">Patient ID</span>
+          <span class="info-value mono highlight">PAT-CARD-001</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Encounter</span>
+          <span class="info-value mono">ENC-CARD-001</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Age / Sex</span>
+          <span class="info-value">68 yrs · Male</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Encounter Type</span>
+          <span class="info-value">Cardiology Consult</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Clinician</span>
+          <span class="info-value mono">cardiologist.local</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Role</span>
+          <span class="info-value highlight">CARDIOLOGIST</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Diagnoses -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Diagnoses</span></div>
+      <div class="tags">
+        <span class="tag tag-dx">NSTEMI</span>
+        <span class="tag tag-dx">Type-2 Diabetes</span>
+        <span class="tag tag-dx">CKD</span>
+      </div>
+    </div>
+
+    <!-- Labs -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Laboratory Values</span></div>
+      <div class="lab-row">
+        <span class="lab-name">Troponin</span>
+        <span class="lab-val abnormal">↑ Elevated & Rising</span>
+      </div>
+      <div class="lab-row">
+        <span class="lab-name">eGFR</span>
+        <span class="lab-val abnormal">42 mL/min/1.73m²</span>
+      </div>
+      <div class="lab-row">
+        <span class="lab-name">Potassium</span>
+        <span class="lab-val abnormal">4.8 mmol/L ⚠</span>
+      </div>
+    </div>
+
+    <!-- Vitals -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Vital Signs</span></div>
+      <div class="lab-row">
+        <span class="lab-name">Systolic BP</span>
+        <span class="lab-val">138 mmHg</span>
+      </div>
+      <div class="lab-row">
+        <span class="lab-name">Heart Rate</span>
+        <span class="lab-val">92 bpm</span>
+      </div>
+      <div class="lab-row">
+        <span class="lab-name">ECG</span>
+        <span class="lab-val abnormal">ST ↓ Lateral Leads</span>
+      </div>
+    </div>
+
+    <!-- Allergies & Contraindications -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">⚠ Allergy Alert</span></div>
+      <div class="tags" style="margin-bottom:8px">
+        <span class="tag tag-allergy">ASPIRIN ALLERGY</span>
+      </div>
+      <div style="font-size:10px;font-family:var(--font-mono);color:var(--accent-red);opacity:0.8">
+        Documented aspirin allergy · Contraindicated
+      </div>
+    </div>
+
+    <!-- Medications & History -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Current Medications</span></div>
+      <div class="tags" style="margin-bottom:10px">
+        <span class="tag tag-med">Atorvastatin</span>
+        <span class="tag tag-med">Metoprolol</span>
+      </div>
+      <div class="section-label" style="margin-bottom:6px">Cardiac History</div>
+      <div class="tags">
+        <span class="tag tag-history">Prior PCI</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Panel: Query + Results -->
+  <main class="right-panel">
+
+    <!-- Query Form -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🔬 Clinical Query</span>
+        <span style="font-size:10px;font-family:var(--font-mono);color:var(--text-muted)">RAG + Claude · Safety-Gated</span>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Clinical Question</label>
+        <textarea id="queryInput" rows="3">Recommend guideline-based considerations for NSTEMI management for this patient.</textarea>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
+        <button class="btn btn-primary" id="submitBtn" onclick="submitQuery()">
+          <span>▶</span> Run CDSS Pipeline
+        </button>
+        <button class="btn" style="background:var(--bg-panel);border:1px solid var(--border);color:var(--text-secondary);font-size:11px" onclick="resetUI()">
+          ↺ Reset
+        </button>
+        <span id="latencyDisplay" style="font-size:10px;font-family:var(--font-mono);color:var(--text-muted);margin-left:auto"></span>
+      </div>
+    </div>
+
+    <!-- Pipeline Loading -->
+    <div class="pipeline-loading" id="pipelineLoading">
+      <div class="spinner"></div>
+      <div style="font-size:11px;font-family:var(--font-mono);color:var(--text-muted)">Running 6-Layer Clinical Intelligence Pipeline</div>
+      <div class="pipeline-steps" id="pipelineSteps">
+        <div class="pipeline-step" id="step1"><span class="step-icon">📥</span>Layer 1 – Request Intake & Audit</div>
+        <div class="pipeline-step" id="step2"><span class="step-icon">🔍</span>Layer 2 – Query Routing & Target Construction</div>
+        <div class="pipeline-step" id="step3"><span class="step-icon">📚</span>Layer 3a – RAG Retrieval (ChromaDB)</div>
+        <div class="pipeline-step" id="step4"><span class="step-icon">🤖</span>Layer 3b – Claude LLM Inference</div>
+        <div class="pipeline-step" id="step5"><span class="step-icon">🛡</span>Layer 4 – Safety Gate Evaluation</div>
+        <div class="pipeline-step" id="step6"><span class="step-icon">👨‍⚕️</span>Layer 5 – Human Review Queue</div>
+        <div class="pipeline-step" id="step7"><span class="step-icon">📤</span>Layer 6 – JSON Response Assembly</div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-container" id="resultsContainer">
+
+      <!-- Metrics -->
+      <div class="metrics-bar" id="metricsBar"></div>
+
+      <!-- Pipeline Trace -->
+      <div class="card" id="pipelineTrace" style="padding:12px 16px"></div>
+
+      <!-- Status Banner -->
+      <div id="statusBanner"></div>
+
+      <!-- Safety Flags -->
+      <div id="safetyFlagsSection"></div>
+
+      <!-- Summary -->
+      <div class="rec-section" id="summarySection">
+        <div class="rec-section-header">
+          <span class="rec-section-icon">📋</span>
+          <span class="rec-section-title">Clinical Summary</span>
+        </div>
+        <div class="rec-section-body" id="summaryBody"></div>
+      </div>
+
+      <!-- Grid sections -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" id="twoColGrid">
+        <div class="rec-section" id="riskSection">
+          <div class="rec-section-header">
+            <span class="rec-section-icon">⚠️</span>
+            <span class="rec-section-title">Risk Stratification</span>
+          </div>
+          <div class="rec-section-body" id="riskBody"></div>
+        </div>
+        <div class="rec-section" id="antiplateletSection">
+          <div class="rec-section-header">
+            <span class="rec-section-icon">💊</span>
+            <span class="rec-section-title">Antiplatelet Guidance</span>
+          </div>
+          <div class="rec-section-body" id="antiplateletBody"></div>
+        </div>
+        <div class="rec-section" id="invasiveSection">
+          <div class="rec-section-header">
+            <span class="rec-section-icon">🫀</span>
+            <span class="rec-section-title">Invasive Strategy</span>
+          </div>
+          <div class="rec-section-body" id="invasiveBody"></div>
+        </div>
+        <div class="rec-section" id="adjunctSection">
+          <div class="rec-section-header">
+            <span class="rec-section-icon">💉</span>
+            <span class="rec-section-title">Adjunct Therapy</span>
+          </div>
+          <div class="rec-section-body" id="adjunctBody"></div>
+        </div>
+      </div>
+
+      <!-- Monitoring -->
+      <div class="rec-section" id="monitoringSection">
+        <div class="rec-section-header">
+          <span class="rec-section-icon">📊</span>
+          <span class="rec-section-title">Monitoring Plan</span>
+        </div>
+        <div class="rec-section-body" id="monitoringBody"></div>
+      </div>
+
+      <!-- Evidence -->
+      <div class="rec-section" id="evidenceSection">
+        <div class="rec-section-header">
+          <span class="rec-section-icon">📖</span>
+          <span class="rec-section-title">Retrieved Guideline Evidence</span>
+          <span style="margin-left:auto;font-size:9px;font-family:var(--font-mono);color:var(--text-muted)">ChromaDB · RAG</span>
+        </div>
+        <div style="padding:12px 16px">
+          <div class="evidence-list" id="evidenceList"></div>
+        </div>
+      </div>
+
+      <!-- Human Review -->
+      <div class="review-panel" id="reviewPanel">
+        <div class="card-header">
+          <span class="card-title">👨‍⚕️ Cardiologist Review Required</span>
+          <span style="font-size:9px;font-family:var(--font-mono);color:var(--status-pending)">PENDING</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;font-family:var(--font-serif);line-height:1.6">
+          This AI-generated recommendation must be reviewed and approved by a registered cardiologist before 
+          any clinical action. Per CARDIO-ACS-NSTEMI-2026 §10 and platform Human-in-the-Loop policy.
+        </div>
+        <div class="form-field">
+          <label class="form-label">Review Notes (optional)</label>
+          <input type="text" id="reviewNotes" placeholder="e.g. Agree with ticagrelor choice, adjusted dose for renal function">
+        </div>
+        <div class="review-actions">
+          <button class="btn btn-approve btn-sm" onclick="submitReview('approve')">✓ Approve</button>
+          <button class="btn btn-reject btn-sm" onclick="submitReview('reject')">✗ Reject</button>
+          <button class="btn btn-sm" style="background:var(--bg-panel);border:1px solid var(--accent-amber);color:var(--accent-amber)" onclick="submitReview('edit')">✎ Approve with Edit</button>
+        </div>
+      </div>
+
+      <!-- Human Review Note -->
+      <div class="rec-section" id="humanNoteSection">
+        <div class="rec-section-header">
+          <span class="rec-section-icon">⚕️</span>
+          <span class="rec-section-title">Human Review Mandate</span>
+        </div>
+        <div class="rec-section-body" id="humanNoteBody"></div>
+      </div>
+
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🫀</div>
+      <div class="empty-title">CDSS Clinical Intelligence</div>
+      <div class="empty-sub">Enter a clinical query and run the pipeline to generate<br>a RAG-driven, safety-gated recommendation.</div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const API = '/api/v1';
+let currentCorrelationId = null;
+
+const PATIENT_PAYLOAD = {
+  patientId: "PAT-CARD-001",
+  encounterId: "ENC-CARD-001",
+  userId: "cardiologist.local",
+  userRole: "CARDIOLOGIST",
+  consentVerified: true,
+  patientContext: {
+    age: 68,
+    sex: "male",
+    encounterType: "cardiology-consult",
+    diagnoses: ["NSTEMI", "type-2-diabetes", "chronic-kidney-disease"],
+    ecgFindings: ["ST depression in lateral leads"],
+    labs: { troponin: "elevated and rising", eGFR: "42", potassium: "4.8" },
+    vitals: { systolicBp: "138", heartRate: "92" },
+    currentMedications: ["atorvastatin", "metoprolol"],
+    allergies: ["aspirin"],
+    contraindications: ["documented aspirin allergy"],
+    cardiacHistory: ["prior PCI"]
+  }
+};
+
+function toast(msg, type='info') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
+async function animatePipelineSteps() {
+  const steps = ['step1','step2','step3','step4','step5','step6','step7'];
+  const delays = [0, 300, 600, 1200, 3500, 4000, 4200];
+  for (let i = 0; i < steps.length; i++) {
+    await new Promise(r => setTimeout(r, delays[i]));
+    if (i > 0) document.getElementById(steps[i-1]).className = 'pipeline-step done';
+    document.getElementById(steps[i]).className = 'pipeline-step active';
+  }
+}
+
+async function submitQuery() {
+  const query = document.getElementById('queryInput').value.trim();
+  if (!query) { toast('Please enter a clinical query', 'error'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsContainer').classList.remove('active');
+  document.getElementById('pipelineLoading').classList.add('active');
+
+  // Reset steps
+  for (let i=1; i<=7; i++) document.getElementById(`step${i}`).className = 'pipeline-step';
+
+  animatePipelineSteps();
+
+  const payload = { ...PATIENT_PAYLOAD, query };
+  const startTime = Date.now();
+
+  try {
+    const res = await fetch(`${API}/recommendations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const latency = Date.now() - startTime;
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    currentCorrelationId = data.correlation_id;
+    document.getElementById('latencyDisplay').textContent = `⏱ ${latency}ms`;
+
+    await new Promise(r => setTimeout(r, 500));
+    document.getElementById('pipelineLoading').classList.remove('active');
+    renderResults(data);
+    toast('Pipeline complete · Pending cardiologist review', 'success');
+
+  } catch (e) {
+    document.getElementById('pipelineLoading').classList.remove('active');
+    document.getElementById('emptyState').style.display = 'flex';
+    toast(`Error: ${e.message}`, 'error');
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderResults(data) {
+  const rec = data.recommendation;
+  const container = document.getElementById('resultsContainer');
+  container.classList.add('active');
+  container.classList.add('fade-in');
+
+  // Metrics
+  const conf = rec.confidence_score;
+  const confColor = conf >= 0.8 ? 'green' : conf >= 0.6 ? 'teal' : 'amber';
+  document.getElementById('metricsBar').innerHTML = `
+    <div class="metric-card">
+      <div class="metric-val ${confColor}">${(conf*100).toFixed(0)}%</div>
+      <div class="metric-label">Confidence Score</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val blue">${rec.evidence_documents.length}</div>
+      <div class="metric-label">Evidence Docs</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val teal">${data.pipeline_latency_ms.toFixed(0)}ms</div>
+      <div class="metric-label">Pipeline Latency</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val ${rec.requires_human_review ? 'amber' : 'green'}">${rec.requires_human_review ? 'YES' : 'NO'}</div>
+      <div class="metric-label">Human Review</div>
+    </div>
+  `;
+
+  // Pipeline trace
+  document.getElementById('pipelineTrace').innerHTML = `
+    <div style="margin-bottom:8px;font-size:9px;font-family:var(--font-mono);color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Pipeline Trace · ${data.correlation_id.substring(0,8)}…</div>
+    <div class="pipeline-trace">
+      <span class="trace-node done">Request Intake</span><span class="trace-arrow">→</span>
+      <span class="trace-node done">Query Route: ${data.query_type}</span><span class="trace-arrow">→</span>
+      <span class="trace-node done">RAG: ${rec.rag_driven ? 'Active' : 'Bypass'}</span><span class="trace-arrow">→</span>
+      <span class="trace-node done">AI Path: ${rec.ai_path_used}</span><span class="trace-arrow">→</span>
+      <span class="trace-node done">Safety Gate</span><span class="trace-arrow">→</span>
+      <span class="trace-node done">Status: ${rec.decision_status}</span>
+    </div>
+  `;
+
+  // Status banner
+  const statusMap = {
+    pending_review: { cls: 'pending', icon: '⏳', msg: 'PENDING CARDIOLOGIST REVIEW – Not for clinical action until approved' },
+    approved: { cls: 'approved', icon: '✅', msg: 'APPROVED – Cardiologist reviewed and approved' },
+    rejected: { cls: 'blocked', icon: '✗', msg: 'REJECTED – Cardiologist has rejected this recommendation' },
+    blocked_safety: { cls: 'blocked', icon: '🚫', msg: 'BLOCKED BY SAFETY GATE – Critical safety conflict detected' },
+    flagged: { cls: 'flagged', icon: '⚑', msg: 'FLAGGED – Safety concerns raised; enhanced review required' },
+  };
+  const s = statusMap[rec.decision_status] || statusMap.pending_review;
+  document.getElementById('statusBanner').innerHTML = `
+    <div class="status-banner ${s.cls}">${s.icon} ${s.msg}</div>
+  `;
+
+  // Safety flags
+  const flags = rec.safety_flags?.flags || [];
+  if (flags.length > 0) {
+    const flagsHtml = flags.map(f => {
+      const cls = f.includes('CRITICAL') || f.includes('SAFETY') ? 'flag-critical' :
+                  f.includes('ALERT') || f.includes('HAEMODYNAMIC') ? 'flag-warning' : 'flag-info';
+      return `<div class="safety-flag ${cls}">⚑ ${f}</div>`;
+    }).join('');
+    document.getElementById('safetyFlagsSection').innerHTML = `
+      <div class="card">
+        <div class="card-header"><span class="card-title">⚑ Safety Gate Flags</span></div>
+        <div class="safety-flags">${flagsHtml}</div>
+      </div>
+    `;
+  } else {
+    document.getElementById('safetyFlagsSection').innerHTML = '';
+  }
+
+  // Text sections
+  document.getElementById('summaryBody').innerHTML = formatText(rec.summary);
+  document.getElementById('riskBody').innerHTML = formatText(rec.risk_stratification);
+  document.getElementById('antiplateletBody').innerHTML = formatText(rec.antiplatelet_guidance);
+  document.getElementById('invasiveBody').innerHTML = formatText(rec.invasive_strategy);
+  document.getElementById('adjunctBody').innerHTML = formatText(rec.adjunct_therapy);
+  document.getElementById('monitoringBody').innerHTML = formatText(rec.monitoring_plan);
+  document.getElementById('humanNoteBody').innerHTML = formatText(rec.human_review_note);
+
+  // Evidence docs
+  const evList = document.getElementById('evidenceList');
+  if (rec.evidence_documents.length > 0) {
+    evList.innerHTML = rec.evidence_documents.map(d => `
+      <div class="evidence-doc">
+        <div class="evidence-doc-header">
+          <span class="evidence-doc-id">${d.doc_id}</span>
+          <div class="evidence-score">
+            <div class="score-bar"><div class="score-bar-fill" style="width:${d.similarity_score*100}%"></div></div>
+            ${(d.similarity_score*100).toFixed(0)}%
+            ${d.relevance_tag ? `<span class="tag tag-dx" style="font-size:8px">${d.relevance_tag}</span>` : ''}
+          </div>
+        </div>
+        <div class="evidence-snippet">${d.content_snippet}</div>
+      </div>
+    `).join('');
+    document.getElementById('evidenceSection').style.display = '';
+  } else {
+    document.getElementById('evidenceSection').style.display = 'none';
+  }
+}
+
+function formatText(text) {
+  if (!text) return '<em style="color:var(--text-muted)">Not available</em>';
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
+async function submitReview(action) {
+  if (!currentCorrelationId) { toast('No active recommendation to review', 'error'); return; }
+  const notes = document.getElementById('reviewNotes').value;
+  try {
+    const res = await fetch(`${API}/recommendations/${currentCorrelationId}/review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        correlation_id: currentCorrelationId,
+        reviewer_id: 'cardiologist.local',
+        reviewer_role: 'CARDIOLOGIST',
+        action,
+        notes: notes || null
+      })
+    });
+    if (!res.ok) throw new Error((await res.json()).detail);
+    const data = await res.json();
+    const statusMap = { approved: 'approved', rejected: 'blocked', edit: 'approved' };
+    const cls = statusMap[action] || 'pending';
+    const msg = action === 'approve' ? '✅ APPROVED – Cardiologist approved this recommendation' :
+                action === 'reject'  ? '✗ REJECTED – Cardiologist rejected this recommendation' :
+                                       '✅ APPROVED WITH EDIT – Cardiologist approved with modifications';
+    document.getElementById('statusBanner').innerHTML = `<div class="status-banner ${cls}">${msg}</div>`;
+    document.getElementById('reviewPanel').style.display = 'none';
+    toast(`Review submitted: ${action.toUpperCase()}`, 'success');
+  } catch (e) {
+    toast(`Review error: ${e.message}`, 'error');
+  }
+}
+
+function resetUI() {
+  document.getElementById('resultsContainer').classList.remove('active');
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('reviewPanel').style.display = '';
+  document.getElementById('latencyDisplay').textContent = '';
+  currentCorrelationId = null;
+}
+
+// Check health on load
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const r = await fetch(`${API}/health`);
+    const h = await r.json();
+    if (h.chroma_ready) toast('CDSS Platform ready · RAG engine online', 'success');
+    else toast('RAG engine indexing guidelines...', 'info');
+  } catch (e) {
+    toast('Cannot reach CDSS API – ensure server is running', 'error');
+  }
+});
+</script>
+</body>
+</html>

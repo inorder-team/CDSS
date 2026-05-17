@@ -1,0 +1,117 @@
+package rules
+
+import com.inorder.clinical.acs.model.AcsCase;
+import com.inorder.clinical.acs.model.AcsType;
+import com.inorder.clinical.acs.model.Recommendation;
+import com.inorder.clinical.acs.model.RecommendationType;
+
+function boolean isTrue(Boolean value) { return Boolean.TRUE.equals(value); }
+
+rule "STEMI - primary PCI facility available close by"
+    salience 100
+    no-loop true
+when
+    $case : AcsCase(
+        acsType == AcsType.STEMI,
+        primaryPciFacilityAvailableCloseBy == Boolean.TRUE
+    )
+    not Recommendation(code == "ACS-STEMI-PRIMARY-PCI")
+then
+    insert(new Recommendation(
+        RecommendationType.PRIMARY_PCI,
+        "ACS-STEMI-PRIMARY-PCI",
+        "Primary PCI pathway: activate cath lab, start dual antiplatelet therapy plus anticoagulation, and proceed to PCI-capable care.",
+        "STEMI with 24x7 primary PCI facility available close by.",
+        "Immediate"
+    ));
+end
+
+rule "STEMI - expected FMC to balloon exceeds 120 minutes or no close PCI facility"
+    salience 95
+    no-loop true
+when
+    $case : AcsCase(
+        acsType == AcsType.STEMI,
+        (
+            primaryPciFacilityAvailableCloseBy == Boolean.FALSE ||
+            expectedFmcToBalloonMinutes != null && expectedFmcToBalloonMinutes > 120
+        )
+    )
+    not Recommendation(code == "ACS-STEMI-FIBRINOLYSIS-PHARMACOINVASIVE")
+then
+    insert(new Recommendation(
+        RecommendationType.FIBRINOLYSIS_PHARMACOINVASIVE_PCI,
+        "ACS-STEMI-FIBRINOLYSIS-PHARMACOINVASIVE",
+        "Give weight-based tenecteplase if eligible, facilitate transfer to a PCI-capable centre, and plan pharmacoinvasive PCI 3–24 hours later.",
+        "Primary PCI pathway is not available close by or expected FMC-to-balloon time exceeds approximately 120 minutes.",
+        "Immediate, then PCI in 3–24 hours"
+    ));
+end
+
+rule "NSTEMI or unstable angina - high risk early invasive strategy"
+    salience 90
+    no-loop true
+when
+    $case : AcsCase(
+        acsType in (AcsType.NSTEMI, AcsType.UNSTABLE_ANGINA),
+        (
+            timiScore != null && timiScore >= 3 ||
+            graceScore != null && graceScore > 140 ||
+            haemodynamicInstability == Boolean.TRUE ||
+            electricalInstability == Boolean.TRUE ||
+            recurrentIschaemia == Boolean.TRUE ||
+            dynamicStOrTChanges == Boolean.TRUE ||
+            largeTroponinRise == Boolean.TRUE
+        )
+    )
+    not Recommendation(code == "ACS-NSTE-HIGH-RISK-EARLY-INVASIVE")
+then
+    insert(new Recommendation(
+        RecommendationType.EARLY_INVASIVE_CAG,
+        "ACS-NSTE-HIGH-RISK-EARLY-INVASIVE",
+        "Early invasive strategy: diagnostic CAG within 24 hours; use ≤2 hours when truly crashing; choose PCI or CABG per the CAG anatomy tree.",
+        "High-risk NSTE-ACS feature present: TIMI ≥3, GRACE >140, instability, recurrent ischaemia, dynamic ST/T change, or major troponin rise.",
+        "≤24 hours; ≤2 hours if unstable"
+    ));
+end
+
+rule "NSTEMI or unstable angina - low to intermediate risk medical optimisation"
+    salience 80
+    no-loop true
+when
+    $case : AcsCase(
+        acsType in (AcsType.NSTEMI, AcsType.UNSTABLE_ANGINA),
+        (timiScore == null || timiScore < 3),
+        (graceScore == null || graceScore <= 140),
+        (haemodynamicInstability == null || haemodynamicInstability == Boolean.FALSE),
+        (electricalInstability == null || electricalInstability == Boolean.FALSE),
+        (recurrentIschaemia == null || recurrentIschaemia == Boolean.FALSE),
+        (dynamicStOrTChanges == null || dynamicStOrTChanges == Boolean.FALSE),
+        (largeTroponinRise == null || largeTroponinRise == Boolean.FALSE)
+    )
+    not Recommendation(code == "ACS-NSTE-LOW-INTERMEDIATE-MEDICAL")
+then
+    insert(new Recommendation(
+        RecommendationType.LOW_INTERMEDIATE_MEDICAL_OPTIMISATION,
+        "ACS-NSTE-LOW-INTERMEDIATE-MEDICAL",
+        "Optimise medication therapy, stabilise and treat pain, and use non-invasive stress imaging if needed.",
+        "NSTE-ACS without high-risk criteria.",
+        "During index stabilisation"
+    ));
+end
+
+rule "NSTEMI or unstable angina - low to intermediate risk delayed elective CAG if indicated"
+    salience 75
+    no-loop true
+when
+    Recommendation(code == "ACS-NSTE-LOW-INTERMEDIATE-MEDICAL")
+    not Recommendation(code == "ACS-NSTE-DELAYED-ELECTIVE-CAG")
+then
+    insert(new Recommendation(
+        RecommendationType.DELAYED_ELECTIVE_CAG,
+        "ACS-NSTE-DELAYED-ELECTIVE-CAG",
+        "Delayed or elective diagnostic CAG later if symptoms persist or non-invasive testing is positive.",
+        "Low/intermediate-risk NSTE-ACS pathway reserves angiography for symptoms or positive testing.",
+        "Delayed/elective"
+    ));
+end

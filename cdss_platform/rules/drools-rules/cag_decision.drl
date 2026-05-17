@@ -1,0 +1,170 @@
+package rules
+
+import com.inorder.clinical.acs.model.CagFinding;
+import com.inorder.clinical.acs.model.LesionCategory;
+import com.inorder.clinical.acs.model.Recommendation;
+import com.inorder.clinical.acs.model.RecommendationType;
+
+rule "CAG - lesion at least 70 percent in one to two epicardial vessels"
+    salience 70
+    no-loop true
+when
+    $cag : CagFinding(
+        diagnosticCagCompleted == Boolean.TRUE,
+        lesionCategory == LesionCategory.ONE_TO_TWO_VESSELS
+    )
+    not Recommendation(code == "CAG-PCI-ONE-TWO-VESSEL")
+then
+    insert(new Recommendation(
+        RecommendationType.PCI,
+        "CAG-PCI-ONE-TWO-VESSEL",
+        "PCI: stent culprit lesion initially and achieve revascularisation within 6 weeks of MI, considering general condition, co-morbidities and finances.",
+        "CAG shows ≥70% disease in 1–2 epicardial vessels.",
+        "Index culprit PCI; complete revascularisation within 6 weeks when appropriate"
+    ));
+end
+
+rule "CAG - lesion at least 70 percent in multivessel disease"
+    salience 70
+    no-loop true
+when
+    $cag : CagFinding(
+        diagnosticCagCompleted == Boolean.TRUE,
+        lesionCategory == LesionCategory.MULTIVESSEL
+    )
+    not Recommendation(code == "CAG-CABG-MULTIVESSEL")
+then
+    insert(new Recommendation(
+        RecommendationType.CABG,
+        "CAG-CABG-MULTIVESSEL",
+        "CABG preferred.",
+        "CAG shows ≥70% multivessel disease.",
+        "Heart-team/surgical pathway"
+    ));
+end
+
+rule "CAG - borderline lesion requires physiology or stress imaging"
+    salience 65
+    no-loop true
+when
+    $cag : CagFinding(
+        diagnosticCagCompleted == Boolean.TRUE,
+        lesionCategory == LesionCategory.BORDERLINE_50_TO_69,
+        (ffrPerformed == null || ffrPerformed == Boolean.FALSE),
+        (stressImagingPerformed == null || stressImagingPerformed == Boolean.FALSE)
+    )
+    not Recommendation(code == "CAG-BORDERLINE-PHYSIOLOGY-STRESS")
+then
+    insert(new Recommendation(
+        RecommendationType.PHYSIOLOGY_OR_STRESS_IMAGING,
+        "CAG-BORDERLINE-PHYSIOLOGY-STRESS",
+        "For a 50–69% borderline lesion, perform physiology testing with FFR ≤0.80 or stress imaging such as MPI. Avoid FFR for culprit vessel in ACS; borderline non-culprit lesions may be assessed in the same setting.",
+        "Borderline stenosis requires ischaemia confirmation before revascularisation.",
+        "After a few weeks unless assessing non-culprit lesion in same setting"
+    ));
+end
+
+rule "CAG - borderline lesion is ischaemic by FFR"
+    salience 64
+    no-loop true
+when
+    $cag : CagFinding(
+        diagnosticCagCompleted == Boolean.TRUE,
+        lesionCategory == LesionCategory.BORDERLINE_50_TO_69,
+        ffrPerformed == Boolean.TRUE,
+        ffrValue != null,
+        ffrValue <= 0.80
+    )
+    not Recommendation(code == "CAG-BORDERLINE-ISCHAEMIC-REVASCULARISE")
+then
+    insert(new Recommendation(
+        RecommendationType.PCI,
+        "CAG-BORDERLINE-ISCHAEMIC-REVASCULARISE",
+        "Treat as PCI or CABG according to coronary anatomy.",
+        "Borderline lesion is ischaemic by FFR ≤0.80.",
+        "Per anatomy"
+    ));
+end
+
+rule "CAG - borderline lesion is ischaemic by stress imaging"
+    salience 64
+    no-loop true
+when
+    $cag : CagFinding(
+        diagnosticCagCompleted == Boolean.TRUE,
+        lesionCategory == LesionCategory.BORDERLINE_50_TO_69,
+        stressImagingPerformed == Boolean.TRUE,
+        stressImagingPositiveForIschaemia == Boolean.TRUE
+    )
+    not Recommendation(code == "CAG-BORDERLINE-ISCHAEMIC-REVASCULARISE")
+then
+    insert(new Recommendation(
+        RecommendationType.PCI,
+        "CAG-BORDERLINE-ISCHAEMIC-REVASCULARISE",
+        "Treat as PCI or CABG according to coronary anatomy.",
+        "Borderline lesion is ischaemic by stress imaging/MPI.",
+        "Per anatomy"
+    ));
+end
+
+rule "CAG - borderline lesion non ischaemic by FFR"
+    salience 63
+    no-loop true
+when
+    $cag : CagFinding(
+        diagnosticCagCompleted == Boolean.TRUE,
+        lesionCategory == LesionCategory.BORDERLINE_50_TO_69,
+        ffrPerformed == Boolean.TRUE,
+        ffrValue != null,
+        ffrValue > 0.80
+    )
+    not Recommendation(code == "CAG-BORDERLINE-NON-ISCHAEMIC-MEDICAL")
+then
+    insert(new Recommendation(
+        RecommendationType.MEDICAL_THERAPY,
+        "CAG-BORDERLINE-NON-ISCHAEMIC-MEDICAL",
+        "Medical therapy.",
+        "Borderline lesion is non-ischaemic by FFR >0.80.",
+        "Ongoing"
+    ));
+end
+
+rule "CAG - borderline lesion non ischaemic by stress imaging"
+    salience 63
+    no-loop true
+when
+    $cag : CagFinding(
+        diagnosticCagCompleted == Boolean.TRUE,
+        lesionCategory == LesionCategory.BORDERLINE_50_TO_69,
+        stressImagingPerformed == Boolean.TRUE,
+        stressImagingPositiveForIschaemia == Boolean.FALSE
+    )
+    not Recommendation(code == "CAG-BORDERLINE-NON-ISCHAEMIC-MEDICAL")
+then
+    insert(new Recommendation(
+        RecommendationType.MEDICAL_THERAPY,
+        "CAG-BORDERLINE-NON-ISCHAEMIC-MEDICAL",
+        "Medical therapy.",
+        "Borderline lesion is non-ischaemic by stress imaging/MPI.",
+        "Ongoing"
+    ));
+end
+
+rule "CAG - lesion less than 50 percent"
+    salience 60
+    no-loop true
+when
+    $cag : CagFinding(
+        diagnosticCagCompleted == Boolean.TRUE,
+        lesionCategory == LesionCategory.LESS_THAN_50
+    )
+    not Recommendation(code == "CAG-LESS-THAN-50-MEDICAL")
+then
+    insert(new Recommendation(
+        RecommendationType.MEDICAL_THERAPY,
+        "CAG-LESS-THAN-50-MEDICAL",
+        "Straight to medical management.",
+        "Baseline lesion is <50%.",
+        "Ongoing"
+    ));
+end

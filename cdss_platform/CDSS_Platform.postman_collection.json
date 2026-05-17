@@ -1,0 +1,942 @@
+{
+  "info": {
+    "name": "CDSS Platform API",
+    "description": "Clinical Decision Support System (CDSS) Platform – Complete API collection.\n\n## Setup\n1. Import this collection and the `CDSS_Platform.postman_environment.json` environment file.\n2. Set `base_url` to your server (default: `http://localhost:8000`).\n3. Run **POST /auth/token** (User Login) or **POST /auth/sessions** (System Login) first.\n4. The `access_token` variable is auto-saved by the login requests – all protected requests use it automatically.\n\n## Auth Flows\n- **Human users** (clinicians, admins): use `POST /auth/token`\n- **Machine-to-machine** (HMIS/EMR/PHR/DHA): use `POST /auth/sessions`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "cdss-platform-v1"
+  },
+  "variable": [
+    { "key": "base_url",     "value": "http://localhost:8000", "type": "string" },
+    { "key": "api_prefix",  "value": "/api/v1",              "type": "string" },
+    { "key": "access_token","value": "",                     "type": "string" },
+    { "key": "refresh_token","value": "",                    "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "item": [
+
+    {
+      "name": "🔐 Authentication",
+      "description": "Token management – login, refresh, logout, user info, and JWKS.",
+      "item": [
+
+        {
+          "name": "User Login (Password Flow)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 200) {",
+                "  const body = pm.response.json();",
+                "  pm.collectionVariables.set('access_token',  body.access_token);",
+                "  pm.collectionVariables.set('refresh_token', body.refresh_token);",
+                "  pm.test('Login successful – tokens saved', () => pm.expect(body.access_token).to.be.a('string'));",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}{{api_prefix}}/auth/token", "host": ["{{base_url}}{{api_prefix}}"], "path": ["auth", "token"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cardiologist@hospital.local\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "description": "Resource Owner Password Flow for human users (clinicians, nurses, admins).\nReturns access_token + refresh_token, both auto-saved to collection variables."
+          },
+          "response": [
+            {
+              "name": "200 OK – Success",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"access_token\": \"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"refresh_token\": \"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"token_type\": \"bearer\",\n  \"expires_in\": 1800\n}"
+            },
+            {
+              "name": "401 Unauthorized",
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"detail\": \"Invalid credentials\"\n}"
+            },
+            {
+              "name": "503 Keycloak Unavailable",
+              "status": "Service Unavailable",
+              "code": 503,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"detail\": \"Authentication service unavailable. Please try again later.\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "System Session (Client Credentials – M2M)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 200) {",
+                "  const body = pm.response.json();",
+                "  pm.collectionVariables.set('access_token', body.access_token);",
+                "  pm.test('M2M token received', () => pm.expect(body.access_token).to.be.a('string'));",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}{{api_prefix}}/auth/sessions", "host": ["{{base_url}}{{api_prefix}}"], "path": ["auth", "sessions"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"hmis-system\",\n  \"client_secret\": \"hmis-client-secret-here\"\n}"
+            },
+            "description": "Machine-to-machine Client Credentials Flow for HMIS/EMR/PHR/DHA systems.\nSend client_id + client_secret; CDSS proxies to Keycloak and returns RS256 signed JWT."
+          },
+          "response": [
+            {
+              "name": "200 OK – M2M Token",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"access_token\": \"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"refresh_token\": \"\",\n  \"token_type\": \"bearer\",\n  \"expires_in\": 3600\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Refresh Token",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 200) {",
+                "  const body = pm.response.json();",
+                "  pm.collectionVariables.set('access_token',  body.access_token);",
+                "  pm.collectionVariables.set('refresh_token', body.refresh_token);",
+                "  pm.test('Token refreshed', () => pm.expect(body.access_token).to.be.a('string'));",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}{{api_prefix}}/auth/refresh", "host": ["{{base_url}}{{api_prefix}}"], "path": ["auth", "refresh"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "description": "Exchange a refresh token for a new access token. New tokens are auto-saved to collection variables."
+          },
+          "response": [
+            {
+              "name": "200 OK – New Tokens",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"access_token\": \"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"refresh_token\": \"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"token_type\": \"bearer\",\n  \"expires_in\": 1800\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}{{api_prefix}}/auth/logout", "host": ["{{base_url}}{{api_prefix}}"], "path": ["auth", "logout"] },
+            "description": "Revokes JTI in Redis and optionally calls Keycloak end-session. Requires a valid Bearer token."
+          },
+          "response": [
+            {
+              "name": "200 OK – Logged Out",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"message\": \"Logged out successfully\",\n  \"user_id\": \"cardiologist@hospital.local\",\n  \"note\": \"For full session termination also call: GET https://keycloak.hospital.local/realms/cdss/protocol/openid-connect/logout\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Current User Info (me)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}{{api_prefix}}/auth/me", "host": ["{{base_url}}{{api_prefix}}"], "path": ["auth", "me"] },
+            "description": "Returns decoded identity claims from the validated JWT. No database lookup."
+          },
+          "response": [
+            {
+              "name": "200 OK – User Info",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"user_id\": \"cardiologist@hospital.local\",\n  \"role\": \"CARDIOLOGIST\",\n  \"org_id\": \"hospital-org-01\",\n  \"source_system\": null,\n  \"groups\": [\"cardiology\", \"clinical\"],\n  \"scopes\": [\"cdss:medication:read\", \"cdss:patient:read\", \"cdss:recommendation:read\", \"openid\", \"profile\"],\n  \"issuer\": \"https://keycloak.hospital.local/realms/cdss\",\n  \"client\": \"cdss-frontend\"\n}"
+            },
+            {
+              "name": "401 Unauthorized",
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"detail\": \"Could not validate credentials\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "JWKS Public Keys",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{base_url}}{{api_prefix}}/auth/jwks", "host": ["{{base_url}}{{api_prefix}}"], "path": ["auth", "jwks"] },
+            "description": "Proxy Keycloak JWKS so downstream systems (HMIS/EMR/PHR/DHA) can verify tokens without direct Keycloak access."
+          },
+          "response": [
+            {
+              "name": "200 OK – JWKS",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"keys\": [\n    {\n      \"kid\": \"cdss-signing-key-001\",\n      \"kty\": \"RSA\",\n      \"alg\": \"RS256\",\n      \"use\": \"sig\",\n      \"n\": \"0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFb...\",\n      \"e\": \"AQAB\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "🩺 Patients",
+      "description": "Patient registration and summary retrieval.\nRequired scopes: `cdss:patient:read`, `cdss:patient:write`, `cdss:encounter:read`, `cdss:recommendation:read`.",
+      "item": [
+
+        {
+          "name": "Get Patient Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/patients/PAT-CARD-001",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["patients", "PAT-CARD-001"]
+            },
+            "description": "Retrieve patient demographics, active diagnoses, allergies, and current medications.\nScope required: `cdss:patient:read`"
+          },
+          "response": [
+            {
+              "name": "200 OK – Patient Found",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"patient_id\": \"PAT-CARD-001\",\n  \"display_name\": \"Patient A (Cardiology)\",\n  \"age\": 68,\n  \"sex\": \"male\",\n  \"active_diagnoses\": [\"NSTEMI\", \"type-2-diabetes\", \"chronic-kidney-disease\"],\n  \"allergies\": [\"aspirin\"],\n  \"current_medications\": [\"atorvastatin\", \"metoprolol\"]\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"detail\": \"Patient PAT-CARD-001 not found\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Register Patient",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}{{api_prefix}}/patients/", "host": ["{{base_url}}{{api_prefix}}"], "path": ["patients", ""] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"PAT-CARD-002\",\n  \"display_name\": \"Patient B (Cardiology)\",\n  \"age\": 55,\n  \"sex\": \"female\",\n  \"active_diagnoses\": [\"NSTEMI\", \"hypertension\"],\n  \"allergies\": [],\n  \"current_medications\": [\"lisinopril\", \"aspirin\"]\n}"
+            },
+            "description": "Register a new patient record.\nScope required: `cdss:patient:write`"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"message\": \"Patient registered\",\n  \"patient_id\": \"PAT-CARD-002\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "List Patient Encounters",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/patients/PAT-CARD-001/encounters",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["patients", "PAT-CARD-001", "encounters"]
+            },
+            "description": "List all encounters for a patient.\nScope required: `cdss:encounter:read`"
+          },
+          "response": [
+            {
+              "name": "200 OK – Encounters",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"patient_id\": \"PAT-CARD-001\",\n  \"encounters\": [\n    {\n      \"encounter_id\": \"ENC-CARD-001\",\n      \"encounter_type\": \"cardiology-consult\",\n      \"date\": \"2026-05-08\",\n      \"status\": \"active\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Patient Recommendation History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/patients/PAT-CARD-001/recommendations",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["patients", "PAT-CARD-001", "recommendations"]
+            },
+            "description": "List all CDSS recommendations generated for a patient.\nScope required: `cdss:recommendation:read`"
+          },
+          "response": [
+            {
+              "name": "200 OK – Recommendation History",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"patient_id\": \"PAT-CARD-001\",\n  \"total\": 1,\n  \"recommendations\": [\n    {\n      \"correlation_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n      \"status\": \"pending_review\",\n      \"confidence\": 0.87,\n      \"generated_at\": \"2026-05-08T09:30:00Z\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "🏥 Encounters",
+      "description": "Encounter management and clinical timeline.\nRequired scopes: `cdss:encounter:read`, `cdss:encounter:write`.",
+      "item": [
+
+        {
+          "name": "Get Encounter",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/encounters/ENC-CARD-001",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["encounters", "ENC-CARD-001"]
+            },
+            "description": "Retrieve full encounter details including diagnoses and timeline events.\nScope required: `cdss:encounter:read`"
+          },
+          "response": [
+            {
+              "name": "200 OK – Encounter Detail",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"encounter_id\": \"ENC-CARD-001\",\n  \"patient_id\": \"PAT-CARD-001\",\n  \"encounter_type\": \"cardiology-consult\",\n  \"clinician_id\": \"cardiologist.local\",\n  \"status\": \"active\",\n  \"created_at\": \"2026-05-08T09:00:00Z\",\n  \"diagnoses\": [\"NSTEMI\", \"type-2-diabetes\", \"chronic-kidney-disease\"],\n  \"timeline_events\": [\n    {\n      \"timestamp\": \"2026-05-08T09:00:00Z\",\n      \"event_type\": \"admission\",\n      \"description\": \"Patient admitted via ED\",\n      \"actor\": \"ED_NURSE\"\n    },\n    {\n      \"timestamp\": \"2026-05-08T09:10:00Z\",\n      \"event_type\": \"ecg\",\n      \"description\": \"12-lead ECG: ST depression lateral leads\",\n      \"actor\": \"cardiologist.local\"\n    },\n    {\n      \"timestamp\": \"2026-05-08T09:20:00Z\",\n      \"event_type\": \"lab_result\",\n      \"description\": \"Troponin-I elevated. eGFR 42. K+ 4.8.\",\n      \"actor\": \"LAB_SYSTEM\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"detail\": \"Encounter ENC-CARD-001 not found\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Create Encounter",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}{{api_prefix}}/encounters", "host": ["{{base_url}}{{api_prefix}}"], "path": ["encounters"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"PAT-CARD-001\",\n  \"encounter_id\": \"ENC-CARD-002\",\n  \"encounter_type\": \"cardiology-consult\",\n  \"clinician_id\": \"cardiologist.local\",\n  \"clinician_role\": \"CARDIOLOGIST\",\n  \"primary_complaint\": \"Chest pain with elevated troponin\",\n  \"diagnoses\": [\"NSTEMI\", \"type-2-diabetes\", \"chronic-kidney-disease\"]\n}"
+            },
+            "description": "Open a new clinical encounter.\nScope required: `cdss:encounter:write`"
+          },
+          "response": [
+            {
+              "name": "200 OK – Encounter Created",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"encounter_id\": \"ENC-CARD-002\",\n  \"patient_id\": \"PAT-CARD-001\",\n  \"encounter_type\": \"cardiology-consult\",\n  \"clinician_id\": \"cardiologist.local\",\n  \"status\": \"active\",\n  \"created_at\": \"2026-05-10T12:00:00Z\",\n  \"diagnoses\": [\"NSTEMI\", \"type-2-diabetes\", \"chronic-kidney-disease\"],\n  \"timeline_events\": [\n    {\n      \"timestamp\": \"2026-05-10T12:00:00Z\",\n      \"event_type\": \"encounter_created\",\n      \"description\": \"Chest pain with elevated troponin\",\n      \"actor\": \"cardiologist.local\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Get Encounter Timeline",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/encounters/ENC-CARD-001/timeline",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["encounters", "ENC-CARD-001", "timeline"]
+            },
+            "description": "Retrieve clinical timeline events for an encounter, sorted newest-first.\nScope required: `cdss:encounter:read`"
+          },
+          "response": [
+            {
+              "name": "200 OK – Timeline",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"encounter_id\": \"ENC-CARD-001\",\n  \"patient_id\": \"PAT-CARD-001\",\n  \"status\": \"active\",\n  \"timeline\": [\n    {\n      \"timestamp\": \"2026-05-08T09:20:00Z\",\n      \"event_type\": \"lab_result\",\n      \"description\": \"Troponin-I elevated. eGFR 42. K+ 4.8.\",\n      \"actor\": \"LAB_SYSTEM\"\n    },\n    {\n      \"timestamp\": \"2026-05-08T09:10:00Z\",\n      \"event_type\": \"ecg\",\n      \"description\": \"12-lead ECG: ST depression lateral leads\",\n      \"actor\": \"cardiologist.local\"\n    },\n    {\n      \"timestamp\": \"2026-05-08T09:00:00Z\",\n      \"event_type\": \"admission\",\n      \"description\": \"Patient admitted via ED\",\n      \"actor\": \"ED_NURSE\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "💊 Medications",
+      "description": "Drug formulary, safety checks, interaction checks, and prescribing.\nRequired scopes: `cdss:medication:read`, `cdss:medication:write`.",
+      "item": [
+
+        {
+          "name": "Drug Safety Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/medications/check?drug=ticagrelor&patient_id=PAT-CARD-001&egfr=42&allergies=aspirin",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["medications", "check"],
+              "query": [
+                { "key": "drug",       "value": "ticagrelor",    "description": "Drug name to check" },
+                { "key": "patient_id", "value": "PAT-CARD-001",  "description": "Patient ID" },
+                { "key": "egfr",       "value": "42",            "description": "eGFR value (optional)" },
+                { "key": "allergies",  "value": "aspirin",       "description": "Comma-separated allergy list (optional)" }
+              ]
+            },
+            "description": "Check if a drug is safe for a patient given their eGFR and documented allergies.\nReturns contraindications, warnings, and adjusted dose recommendations.\nScope required: `cdss:medication:read`\n\n**Available drugs:** ticagrelor, clopidogrel, prasugrel, fondaparinux, enoxaparin, atorvastatin, metoprolol"
+          },
+          "response": [
+            {
+              "name": "200 OK – Safe to Use",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"drug\": \"Ticagrelor\",\n  \"patient_id\": \"PAT-CARD-001\",\n  \"safe_to_use\": true,\n  \"warnings\": [],\n  \"contraindications_triggered\": [],\n  \"dose_recommendation\": \"180mg loading, then 90mg twice daily\"\n}"
+            },
+            {
+              "name": "200 OK – Contraindicated (eGFR low)",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"drug\": \"Prasugrel\",\n  \"patient_id\": \"PAT-CARD-001\",\n  \"safe_to_use\": false,\n  \"warnings\": [],\n  \"contraindications_triggered\": [\"Prasugrel contraindicated: eGFR 22 < 30\"],\n  \"dose_recommendation\": \"60mg loading, then 10mg daily\"\n}"
+            },
+            {
+              "name": "404 Drug Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"detail\": \"Drug 'warfarin' not found in formulary\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Get Drug Info",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/medications/ticagrelor",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["medications", "ticagrelor"]
+            },
+            "description": "Full formulary information for a drug: class, standard dose, renal adjustment, contraindications, interactions, monitoring.\nScope required: `cdss:medication:read`\n\n**Try:** ticagrelor | clopidogrel | prasugrel | fondaparinux | enoxaparin | atorvastatin | metoprolol"
+          },
+          "response": [
+            {
+              "name": "200 OK – Drug Info",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"drug_name\": \"Ticagrelor\",\n  \"drug_class\": \"P2Y12 inhibitor (antiplatelet)\",\n  \"standard_dose\": \"180mg loading, then 90mg twice daily\",\n  \"renal_adjustment\": \"No dose adjustment required for eGFR >= 15\",\n  \"contraindications\": [\n    \"active bleeding\",\n    \"prior intracranial haemorrhage\",\n    \"severe hepatic impairment\"\n  ],\n  \"interactions\": [\n    \"strong CYP3A4 inhibitors\",\n    \"digoxin\",\n    \"simvastatin >40mg\"\n  ],\n  \"monitoring\": [\"dyspnoea\", \"bleeding signs\", \"renal function\"],\n  \"notes\": \"Preferred P2Y12 inhibitor for NSTEMI. NOT affected by aspirin allergy.\"\n}"
+            },
+            {
+              "name": "404 Drug Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"detail\": \"Drug 'warfarin' not in formulary\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Check Drug-Drug Interactions",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}{{api_prefix}}/medications/interactions", "host": ["{{base_url}}{{api_prefix}}"], "path": ["medications", "interactions"] },
+            "body": {
+              "mode": "raw",
+              "raw": "[\"ticagrelor\", \"metoprolol\", \"atorvastatin\"]"
+            },
+            "description": "Check all pairwise drug-drug interactions for a list of drugs.\nPass an array of drug names. Returns severity + recommendation for each interaction found.\nScope required: `cdss:medication:read`"
+          },
+          "response": [
+            {
+              "name": "200 OK – Interactions Found",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "[\n  {\n    \"drug_a\": \"ticagrelor\",\n    \"drug_b\": \"metoprolol\",\n    \"severity\": \"monitor\",\n    \"description\": \"Additive bradycardia risk.\",\n    \"recommendation\": \"Monitor heart rate; adjust metoprolol dose if needed.\"\n  }\n]"
+            },
+            {
+              "name": "200 OK – No Interactions",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "[]"
+            }
+          ]
+        },
+
+        {
+          "name": "Prescribe Medication",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/medications/prescribe?drug=ticagrelor&patient_id=PAT-CARD-001&dose=180mg+loading+dose",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["medications", "prescribe"],
+              "query": [
+                { "key": "drug",       "value": "ticagrelor",           "description": "Drug name" },
+                { "key": "patient_id", "value": "PAT-CARD-001",         "description": "Patient ID" },
+                { "key": "dose",       "value": "180mg loading dose",   "description": "Dose instructions" }
+              ]
+            },
+            "description": "Record a prescription for a patient. Requires elevated write scope.\nScope required: `cdss:medication:write`"
+          },
+          "response": [
+            {
+              "name": "201 Created – Prescription Recorded",
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"message\": \"Prescription recorded\",\n  \"drug\": \"ticagrelor\",\n  \"patient_id\": \"PAT-CARD-001\",\n  \"dose\": \"180mg loading dose\",\n  \"prescribed_by\": \"cardiologist@hospital.local\"\n}"
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "🤖 Clinical Decision Support",
+      "description": "Core CDSS recommendation engine: generate AI recommendations and submit human review decisions.\nThis module runs the full 6-layer Clinical Intelligence Pipeline (RAG → Claude LLM → Safety Gate → Human Review).",
+      "item": [
+
+        {
+          "name": "Generate CDSS Recommendation",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 200) {",
+                "  const body = pm.response.json();",
+                "  pm.collectionVariables.set('correlation_id', body.correlation_id);",
+                "  pm.test('Recommendation received', () => pm.expect(body.correlation_id).to.be.a('string'));",
+                "  pm.test('Status is pending_review', () => pm.expect(body.recommendation.decision_status).to.equal('pending_review'));",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}{{api_prefix}}/recommendations", "host": ["{{base_url}}{{api_prefix}}"], "path": ["recommendations"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"PAT-CARD-001\",\n  \"encounterId\": \"ENC-CARD-001\",\n  \"userId\": \"cardiologist@hospital.local\",\n  \"userRole\": \"CARDIOLOGIST\",\n  \"query\": \"What antiplatelet and anticoagulation therapy should be initiated for this NSTEMI patient with aspirin allergy and eGFR 42?\",\n  \"consentVerified\": true,\n  \"patientContext\": {\n    \"age\": 68,\n    \"sex\": \"male\",\n    \"encounterType\": \"cardiology-consult\",\n    \"diagnoses\": [\"NSTEMI\", \"type-2-diabetes\", \"chronic-kidney-disease\"],\n    \"ecgFindings\": [\"ST depression in lateral leads V4-V6\", \"T-wave inversion\"],\n    \"labs\": {\n      \"troponin\": \"elevated 2.4 ng/mL\",\n      \"eGFR\": \"42 mL/min/1.73m2\",\n      \"potassium\": \"4.8 mEq/L\",\n      \"creatinine\": \"1.8 mg/dL\",\n      \"haemoglobin\": \"11.2 g/dL\",\n      \"platelets\": \"210,000/μL\",\n      \"INR\": \"1.1\"\n    },\n    \"vitals\": {\n      \"systolicBp\": \"128 mmHg\",\n      \"diastolicBp\": \"82 mmHg\",\n      \"heartRate\": \"88 bpm\",\n      \"spo2\": \"97%\",\n      \"respiratoryRate\": \"16/min\",\n      \"temperature\": \"37.1°C\"\n    },\n    \"currentMedications\": [\"atorvastatin\", \"metoprolol\"],\n    \"allergies\": [\"aspirin\"],\n    \"contraindications\": [],\n    \"cardiacHistory\": [\"hypertension\", \"previous PCI 3 years ago\"]\n  }\n}"
+            },
+            "description": "**Core CDSS endpoint.** Runs the full 6-layer Clinical Intelligence Pipeline:\n1. **RAG Retrieval** – pulls relevant cardiology guideline chunks from ChromaDB\n2. **LLM Inference** – Claude generates structured clinical recommendation\n3. **Safety Gate** – validates against allergy/renal/haemodynamic constraints\n4. **Human Review Queue** – sets status to `pending_review`\n\nReturns structured recommendation requiring cardiologist approval.\nThe `correlation_id` is auto-saved for use in the review endpoint.\n\n⚠️ Requires `ANTHROPIC_API_KEY` to be configured in `.env`"
+          },
+          "response": [
+            {
+              "name": "200 OK – Recommendation Generated",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"correlation_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"patient_id\": \"PAT-CARD-001\",\n  \"encounter_id\": \"ENC-CARD-001\",\n  \"query_type\": \"clinical\",\n  \"recommendation\": {\n    \"recommendation_id\": \"rec-9a1b2c3d\",\n    \"summary\": \"Initiate ticagrelor 180mg loading (preferred P2Y12 – safe in aspirin allergy), fondaparinux 2.5mg SC OD (eGFR 42 ≥ 20 threshold), high-intensity atorvastatin 80mg, optimise metoprolol for HR 50-70bpm. Early invasive strategy (coronary angiography within 72h).\",\n    \"risk_stratification\": \"HIGH – GRACE score estimated >140. Elevated troponin, ST changes, CKD stage 3a, T2DM.\",\n    \"antiplatelet_guidance\": \"Ticagrelor 180mg loading dose, then 90mg BD. Aspirin allergy documented – ticagrelor monotherapy or clopidogrel 600mg loading as alternative.\",\n    \"invasive_strategy\": \"Early invasive (within 24-72h). Cardiology review for coronary angiography ± PCI. Renal protection protocol given eGFR 42.\",\n    \"adjunct_therapy\": \"Atorvastatin 80mg OD. Metoprolol titrate to HR 50-70 bpm. Hold ACEi/ARB until haemodynamically stable.\",\n    \"monitoring_plan\": \"Troponin series at 3h and 6h. Repeat eGFR 24h post-contrast. K+ monitoring daily (current 4.8). ECG monitoring continuous.\",\n    \"human_review_note\": \"Aspirin allergy mandates ticagrelor-based DAPT modification. eGFR 42 excludes prasugrel. Fondaparinux preferred over LMWH for eGFR 42. Requires senior cardiologist approval before implementation.\",\n    \"ai_path_used\": \"rag_llm\",\n    \"rag_driven\": true,\n    \"evidence_documents\": [\n      {\n        \"doc_id\": \"chunk-001\",\n        \"source\": \"CARDIO-ACS-NSTEMI-2026.txt\",\n        \"content_snippet\": \"For NSTEMI with aspirin allergy, ticagrelor is the preferred P2Y12 inhibitor...\",\n        \"similarity_score\": 0.94,\n        \"source_type\": \"guideline\",\n        \"relevance_tag\": \"antiplatelet\"\n      }\n    ],\n    \"safety_flags\": {\n      \"allergy_conflict\": true,\n      \"contraindication_detected\": false,\n      \"renal_dose_adjustment_required\": true,\n      \"high_bleeding_risk\": false,\n      \"haemodynamic_instability\": false,\n      \"requires_urgent_escalation\": false,\n      \"flags\": [\"aspirin_allergy_documented\", \"ckd_stage_3a_renal_adjustment\"]\n    },\n    \"confidence_score\": 0.87,\n    \"decision_status\": \"pending_review\",\n    \"requires_human_review\": true,\n    \"generated_at\": \"2026-05-10T12:30:00Z\"\n  },\n  \"pipeline_latency_ms\": 1840.5,\n  \"audit_logged\": true,\n  \"model_version\": \"claude-3-5-sonnet-20241022\",\n  \"disclaimer\": \"This output is AI-generated clinical decision support. It requires cardiologist review before any care action. Not a substitute for clinical judgment.\"\n}"
+            },
+            {
+              "name": "503 API Key Not Configured",
+              "status": "Service Unavailable",
+              "code": 503,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"detail\": \"Anthropic API key not configured. Set ANTHROPIC_API_KEY in .env file.\"\n}"
+            },
+            {
+              "name": "422 Consent Not Verified",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\"body\", \"consentVerified\"],\n      \"msg\": \"Consent must be verified before clinical decision support can be provided.\",\n      \"type\": \"value_error\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Get Recommendation by Correlation ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/recommendations/{{correlation_id}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["recommendations", "{{correlation_id}}"]
+            },
+            "description": "Retrieve a previously generated recommendation by its correlation ID.\nThe `correlation_id` is auto-set when you run 'Generate CDSS Recommendation'."
+          },
+          "response": [
+            {
+              "name": "200 OK – Found",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"correlation_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"patient_id\": \"PAT-CARD-001\",\n  \"encounter_id\": \"ENC-CARD-001\",\n  \"query_type\": \"clinical\",\n  \"recommendation\": {\n    \"decision_status\": \"pending_review\",\n    \"confidence_score\": 0.87,\n    \"requires_human_review\": true\n  }\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"detail\": \"No recommendation found for correlation_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "List All Recommendations",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/recommendations?limit=20",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["recommendations"],
+              "query": [{ "key": "limit", "value": "20", "description": "Max number to return (default 20)" }]
+            },
+            "description": "List recent recommendations with summary status. Useful for dashboard/queue views."
+          },
+          "response": [
+            {
+              "name": "200 OK – List",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"total\": 3,\n  \"returned\": 3,\n  \"recommendations\": [\n    {\n      \"correlation_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n      \"patient_id\": \"PAT-CARD-001\",\n      \"status\": \"pending_review\",\n      \"confidence\": 0.87,\n      \"requires_review\": true,\n      \"generated_at\": \"2026-05-10T12:30:00Z\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Submit Human Review Decision",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/recommendations/{{correlation_id}}/review",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["recommendations", "{{correlation_id}}", "review"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correlation_id\": \"{{correlation_id}}\",\n  \"reviewer_id\": \"dr.smith@hospital.local\",\n  \"reviewer_role\": \"CARDIOLOGIST\",\n  \"action\": \"approve\",\n  \"notes\": \"Recommendation reviewed and approved. Ticagrelor appropriate given aspirin allergy. eGFR 42 acceptable for fondaparinux. Proceed with early invasive strategy.\",\n  \"edited_summary\": null\n}"
+            },
+            "description": "**Layer 5 – Human Review.** Cardiologist submits approve/reject/edit decision.\nLogs immutably per HIPAA audit requirements.\n\n**Actions:** `approve` | `reject` | `edit`\n\nThe `correlation_id` is auto-filled from the Generate Recommendation response."
+          },
+          "response": [
+            {
+              "name": "200 OK – Approved",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"correlation_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"final_status\": \"approved\",\n  \"reviewed_by\": \"dr.smith@hospital.local\",\n  \"reviewed_at\": \"2026-05-10T12:45:00Z\",\n  \"audit_logged\": true\n}"
+            },
+            {
+              "name": "200 OK – Rejected",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"correlation_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"final_status\": \"rejected\",\n  \"reviewed_by\": \"dr.smith@hospital.local\",\n  \"reviewed_at\": \"2026-05-10T12:46:00Z\",\n  \"audit_logged\": true\n}"
+            },
+            {
+              "name": "400 Invalid Action",
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"detail\": \"action must be one of: approve, reject, edit\"\n}"
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "📋 Audit",
+      "description": "HIPAA-compliant audit log access.\nRequired scope: `cdss:audit:read`.",
+      "item": [
+
+        {
+          "name": "List Recent Audit Events",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/audit?limit=50",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["audit"],
+              "query": [{ "key": "limit", "value": "50", "description": "Number of events to return (max 500)" }]
+            },
+            "description": "List recent audit events, newest first.\nScope required: `cdss:audit:read`"
+          },
+          "response": [
+            {
+              "name": "200 OK – Audit Events",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"total_returned\": 2,\n  \"events\": [\n    {\n      \"timestamp\": \"2026-05-10T12:45:00Z\",\n      \"event\": \"human_review_submitted\",\n      \"correlation_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n      \"reviewer_id\": \"dr.smith@hospital.local\",\n      \"action\": \"approve\"\n    },\n    {\n      \"timestamp\": \"2026-05-10T12:30:00Z\",\n      \"event\": \"recommendation_generated\",\n      \"correlation_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n      \"patient_id\": \"PAT-CARD-001\",\n      \"user_id\": \"cardiologist@hospital.local\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Get Audit Events by Correlation ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/audit/{{correlation_id}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["audit", "{{correlation_id}}"]
+            },
+            "description": "Retrieve all audit events for a specific correlation ID (traces a single recommendation lifecycle).\nScope required: `cdss:audit:read`"
+          },
+          "response": [
+            {
+              "name": "200 OK – Correlated Events",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"correlation_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"events\": [\n    {\n      \"timestamp\": \"2026-05-10T12:30:00Z\",\n      \"event\": \"recommendation_generated\",\n      \"patient_id\": \"PAT-CARD-001\"\n    },\n    {\n      \"timestamp\": \"2026-05-10T12:45:00Z\",\n      \"event\": \"human_review_submitted\",\n      \"action\": \"approve\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"detail\": \"No audit events for correlation_id=3fa85f64-5717-4562-b3fc-2c963f66afa6\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Export Audit Log (JSONL)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}{{api_prefix}}/audit/export", "host": ["{{base_url}}{{api_prefix}}"], "path": ["audit", "export"] },
+            "description": "Export the complete audit log as JSONL (newline-delimited JSON).\nResponse is a file download (`cdss_audit.jsonl`).\nScope required: `cdss:audit:read`"
+          },
+          "response": [
+            {
+              "name": "200 OK – JSONL Download",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                { "key": "Content-Type",        "value": "application/x-ndjson" },
+                { "key": "Content-Disposition", "value": "attachment; filename=cdss_audit.jsonl" }
+              ],
+              "_postman_previewlanguage": "text",
+              "body": "{\"timestamp\": \"2026-05-10T12:30:00Z\", \"event\": \"recommendation_generated\", \"correlation_id\": \"3fa85f64\"}\n{\"timestamp\": \"2026-05-10T12:45:00Z\", \"event\": \"human_review_submitted\", \"action\": \"approve\"}\n"
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "⚙️ Admin",
+      "description": "System administration – stats, audit queries, and RAG index management.\nRequired scope: `cdss:admin` (or `cdss:audit:read` for audit endpoints).",
+      "item": [
+
+        {
+          "name": "System Statistics",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}{{api_prefix}}/admin/stats", "host": ["{{base_url}}{{api_prefix}}"], "path": ["admin", "stats"] },
+            "description": "Returns system health stats: app version, LLM model, RAG chunk count, audit log size, pending recommendation count.\nScope required: admin role"
+          },
+          "response": [
+            {
+              "name": "200 OK – Stats",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"app_name\": \"CDSS Platform\",\n  \"version\": \"1.0.0\",\n  \"environment\": \"development\",\n  \"llm_model\": \"claude-3-5-sonnet-20241022\",\n  \"rag_collection\": \"cdss_clinical_guidelines\",\n  \"rag_chunk_count\": 247,\n  \"rag_ready\": true,\n  \"audit_log_entries\": 1842,\n  \"pending_recommendations\": 3\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Query Audit Log (Admin)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/admin/audit?limit=50&event_type=human_review_submitted&patient_id=PAT-CARD-001",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["admin", "audit"],
+              "query": [
+                { "key": "limit",      "value": "50",                    "description": "Max entries (1-500)" },
+                { "key": "event_type", "value": "human_review_submitted","description": "Filter by event type (optional)" },
+                { "key": "patient_id", "value": "PAT-CARD-001",          "description": "Filter by patient ID (optional)" }
+              ]
+            },
+            "description": "Admin audit query with filtering by event_type and patient_id.\nScope required: `cdss:audit:read`"
+          },
+          "response": [
+            {
+              "name": "200 OK – Filtered Audit",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"entries\": [\n    {\n      \"timestamp\": \"2026-05-10T12:45:00Z\",\n      \"event\": \"human_review_submitted\",\n      \"patient_id\": \"PAT-CARD-001\",\n      \"action\": \"approve\",\n      \"reviewer_id\": \"dr.smith@hospital.local\"\n    }\n  ],\n  \"total\": 1842,\n  \"returned\": 1\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "List Audit Event Types",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}{{api_prefix}}/admin/audit/events", "host": ["{{base_url}}{{api_prefix}}"], "path": ["admin", "audit", "events"] },
+            "description": "Returns all unique event type strings present in the audit log. Useful for building filter dropdowns."
+          },
+          "response": [
+            {
+              "name": "200 OK – Event Types",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"event_types\": [\n    \"human_review_submitted\",\n    \"pipeline_error\",\n    \"recommendation_generated\",\n    \"safety_gate_blocked\"\n  ]\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Re-index RAG Guidelines",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}{{api_prefix}}/admin/rag/reindex", "host": ["{{base_url}}{{api_prefix}}"], "path": ["admin", "rag", "reindex"] },
+            "description": "Re-ingest all guideline files from `./data/guidelines/` into ChromaDB.\nRun this after adding or updating clinical guideline documents.\nScope required: admin role"
+          },
+          "response": [
+            {
+              "name": "200 OK – Reindexed",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"status\": \"success\",\n  \"chunks_indexed\": 247,\n  \"collection\": \"cdss_clinical_guidelines\"\n}"
+            },
+            {
+              "name": "404 Guidelines Dir Missing",
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"detail\": \"data/guidelines directory not found\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Reset RAG Collection",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}{{api_prefix}}/admin/rag/reset", "host": ["{{base_url}}{{api_prefix}}"], "path": ["admin", "rag", "reset"] },
+            "description": "⚠️ **Destructive.** Deletes the ChromaDB collection entirely.\nRun `POST /admin/rag/reindex` afterwards to rebuild.\nScope required: admin role"
+          },
+          "response": [
+            {
+              "name": "200 OK – Reset",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"status\": \"collection_reset\",\n  \"message\": \"Run /admin/rag/reindex to rebuild.\"\n}"
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "🏓 System Health",
+      "description": "Health and readiness checks – no auth required.",
+      "item": [
+
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{base_url}}{{api_prefix}}/health", "host": ["{{base_url}}{{api_prefix}}"], "path": ["health"] },
+            "description": "System health check. Returns `healthy` if ChromaDB is ready, `degraded` otherwise. No auth required."
+          },
+          "response": [
+            {
+              "name": "200 OK – Healthy",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"status\": \"healthy\",\n  \"version\": \"1.0.0\",\n  \"environment\": \"development\",\n  \"chroma_ready\": true,\n  \"llm_model\": \"claude-3-5-sonnet-20241022\",\n  \"timestamp\": \"2026-05-10T12:00:00Z\"\n}"
+            },
+            {
+              "name": "200 OK – Degraded (RAG not ready)",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"status\": \"degraded\",\n  \"version\": \"1.0.0\",\n  \"environment\": \"development\",\n  \"chroma_ready\": false,\n  \"llm_model\": \"claude-3-5-sonnet-20241022\",\n  \"timestamp\": \"2026-05-10T12:00:00Z\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "RAG Health",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{base_url}}{{api_prefix}}/health/rag", "host": ["{{base_url}}{{api_prefix}}"], "path": ["health", "rag"] },
+            "description": "Detailed ChromaDB / RAG collection status: chunk count, embedding model, ready flag."
+          },
+          "response": [
+            {
+              "name": "200 OK – RAG Status",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"collection\": \"cdss_clinical_guidelines\",\n  \"chunk_count\": 247,\n  \"embedding_model\": \"sentence-transformers/all-MiniLM-L6-v2\",\n  \"ready\": true\n}"
+            }
+          ]
+        }
+
+      ]
+    }
+
+  ]
+}

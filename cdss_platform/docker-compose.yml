@@ -1,0 +1,159 @@
+version: "3.9"
+
+services:
+  cdss_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cdss_api
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DATABASE_URL=postgresql+asyncpg://cdss_user:cdss_pass@postgres:5432/cdss_db
+      - REDIS_URL=redis://redis:6379/0
+      - RATE_LIMIT_ENABLED=true
+      - CHROMA_PERSIST_DIR=/app/data/chroma_db
+      - APP_ENV=production
+      - DEBUG=false
+      - KIE_SERVER_URL=http://kie_server:8080
+      - KIE_SERVER_USER=kieserver
+      - KIE_SERVER_PASSWORD=kieserver1!
+      - KIE_CONTAINER_ID=acs-clinical-rules
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./rules:/app/rules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - cdss_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  kie_server:
+    image: quay.io/kiegroup/kie-server:latest
+    container_name: cdss_kie_server
+    ports:
+      - "8180:8080"
+    environment:
+      - KIE_SERVER_ID=cdss-kie-server
+      - KIE_SERVER_USER=kieserver
+      - KIE_SERVER_PASSWORD=kieserver1!
+      - KIE_SERVER_CONTROLLER_OPENSHIFT_GLOBAL_DISCOVERY_ENABLED=false
+      - KIE_SERVER_STARTUP_STRATEGY=LocalContainersStartupStrategy
+      - KIE_SERVER_CONTAINER_DEPLOYMENT=acs-clinical-rules=com.inorder.clinical:acs-rules:1.0.0
+      - JAVA_OPTS=-Xms512m -Xmx1024m
+    volumes:
+      - ./rules/drools-rules:/opt/jboss/wildfly/standalone/deployments/rules:ro
+      - kie_data:/opt/jboss/wildfly/standalone/data
+    restart: unless-stopped
+    networks:
+      - cdss_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/kie-server/services/rest/server"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: cdss_postgres
+    environment:
+      POSTGRES_USER: cdss_user
+      POSTGRES_PASSWORD: cdss_pass
+      POSTGRES_DB: cdss_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - cdss_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cdss_user -d cdss_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: cdss_redis
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - cdss_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: cdss_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: cdss_minio_user
+      MINIO_ROOT_PASSWORD: cdss_minio_pass
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+    networks:
+      - cdss_network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cdss_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deployment/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+    networks:
+      - cdss_network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cdss_grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: cdss_grafana_pass
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - cdss_network
+
+networks:
+  cdss_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  prometheus_data:
+  grafana_data:
+  kie_data:

@@ -1,0 +1,76 @@
+;;; ACS_Triage.mlm ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Arden Syntax Medical Logic Module
+;;; Purpose : Risk-stratify ACS patients when KIE Server is unavailable
+;;; Author  : CDSS Clinical Engineering
+;;; Version : 1.0  Date: 2026-05-14
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+maintenance:
+  title:        ACS Triage Risk Stratification;;
+  mlmname:      ACS_Triage;;
+  arden:        version 2.10;;
+  version:      1.0;;
+  institution:  CDSS Platform;;
+  author:       CDSS Clinical Engineering;;
+  specialist:   Cardiology;;
+  date:         2026-05-14;;
+  validation:   testing;;
+
+library:
+  purpose:
+    Evaluates ACS type, TIMI/GRACE scores, and haemodynamic state to
+    produce an initial triage recommendation (Primary PCI, Fibrinolysis,
+    Early Invasive, or Medical Optimisation).;;
+
+  explanation:
+    Implements ESC 2023 ACS guideline pathways in Arden Syntax for
+    local execution when the Drools KIE Server is unreachable.;;
+
+  keywords:
+    ACS; STEMI; NSTEMI; TIMI; GRACE; PCI; Fibrinolysis;;
+
+knowledge:
+  type:         data-driven;;
+
+  data:
+    acs_type        := read last {ACS_TYPE};
+    timi_score      := read last {TIMI_SCORE};
+    grace_score     := read last {GRACE_SCORE};
+    hd_instability  := read last {HAEMODYNAMIC_INSTABILITY};
+    el_instability  := read last {ELECTRICAL_INSTABILITY};
+    recur_ischaemia := read last {RECURRENT_ISCHAEMIA};
+    pci_available   := read last {PCI_FACILITY_CLOSE};
+    fmc_to_balloon  := read last {FMC_TO_BALLOON_MINUTES};;
+
+  evoke:
+    every 1 second;;
+
+  logic:
+    /* STEMI – Primary PCI pathway */
+    if (acs_type = "STEMI") AND (pci_available = true)
+    then conclude "PRIMARY_PCI:Activate cath lab, DAPT + anticoagulation, proceed to primary PCI.";
+
+    /* STEMI – Pharmacoinvasive when PCI not reachable in time */
+    if (acs_type = "STEMI") AND (
+        (pci_available = false) OR (fmc_to_balloon > 120)
+    )
+    then conclude "PHARMACOINVASIVE_PCI:Administer tenecteplase if eligible, transfer to PCI centre, plan PCI 3-24h later.";
+
+    /* NSTEMI / UA – High risk → Early Invasive */
+    if (acs_type = "NSTEMI" OR acs_type = "UA") AND (
+        (timi_score >= 3) OR (grace_score > 140) OR
+        (hd_instability = true) OR (el_instability = true) OR
+        (recur_ischaemia = true)
+    )
+    then conclude "EARLY_INVASIVE_CAG:Diagnostic CAG within 24h (≤2h if unstable).";
+
+    /* NSTEMI / UA – Low-Intermediate → Medical Optimisation */
+    if (acs_type = "NSTEMI" OR acs_type = "UA") AND NOT (
+        (timi_score >= 3) OR (grace_score > 140) OR
+        (hd_instability = true) OR (el_instability = true) OR
+        (recur_ischaemia = true)
+    )
+    then conclude "MEDICAL_OPTIMISATION:Optimise medication, stabilise, non-invasive stress imaging if needed.";;
+
+  action:
+    write conclusion;;

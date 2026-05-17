@@ -1,0 +1,15 @@
+/* CDSS Platform – Print Stylesheet for clinical recommendation export */
+@media print {
+  body { background: white; color: black; font-family: Arial, sans-serif; }
+  .header, .left-panel, .pipeline-loading { display: none !important; }
+  .right-panel { padding: 0; overflow: visible; }
+  .rec-section { border: 1px solid #ccc; margin-bottom: 12px; page-break-inside: avoid; }
+  .rec-section-header { background: #f0f0f0 !important; padding: 8px; }
+  .rec-section-title { color: #003366 !important; }
+  .rec-section-body { color: #000 !important; padding: 10px; }
+  .status-banner { border: 2px solid #000; padding: 10px; margin-bottom: 12px; }
+  .evidence-list { display: none; }
+  .review-panel { display: none; }
+  .metrics-bar { display: none; }
+  h1 { content: "CDSS Clinical Recommendation – CONFIDENTIAL"; }
+}
