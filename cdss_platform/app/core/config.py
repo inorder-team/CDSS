@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     jwt_verify_audience: bool = False   # set True in prod when Keycloak sets aud
 
     # Keycloak
-    keycloak_url: str = "http://keycloak:8080"
+    keycloak_url: str = "http://keycloak:8081"
     keycloak_realm: str = "cdss"
     keycloak_client_id: str = "cdss-api"
     keycloak_client_secret: str = ""

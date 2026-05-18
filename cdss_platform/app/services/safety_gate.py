@@ -119,10 +119,23 @@ class CDSSSafetyGate:
                 pass
 
         # ── 4. Haemodynamic Instability Check ─────────────────────────────
-        sbp_raw = ctx.vitals.systolic_bp
-        if sbp_raw:
-            try:
-                sbp = float(sbp_raw)
+                # ── 4. Haemodynamic Instability Check ─────────────────────────────
+                sbp_raw = ctx.vitals.systolic_bp
+                if sbp_raw:
+                    try:
+                        # Use minimum SBP across all readings — most conservative/safe choice
+                        sbp_values = [float(v) for v in sbp_raw if v]
+                        if sbp_values:
+                            sbp = min(sbp_values)
+                            if sbp < 90:
+                                safety_flags.haemodynamic_instability = True
+                                safety_flags.requires_urgent_escalation = True
+                                flags.append(
+                                    f"HAEMODYNAMIC: SBP {sbp} mmHg – haemodynamic instability; urgent cardiology escalation")
+                                if "nitrate" in response_lower:
+                                    flags.append("SAFETY: Nitrate mentioned with low SBP (<90) – contraindicated")
+                    except ValueError:
+                        pass
                 if sbp < 90:
                     safety_flags.haemodynamic_instability = True
                     safety_flags.requires_urgent_escalation = True

@@ -102,7 +102,7 @@ class GatewayPredicateMiddleware(BaseHTTPMiddleware):
         token = auth_header[len("Bearer "):]
         try:
             from app.core.security import decode_token
-            user = decode_token(token)
+            user = await decode_token(token)
             request.state.user = user
             request.state.client_id = user.azp or "unknown"
             request.state.org_id = user.org_id or "unknown"
