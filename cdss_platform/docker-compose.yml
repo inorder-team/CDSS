@@ -10,12 +10,22 @@ services:
       - "8000:8000"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - LLM_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - DATABASE_URL=postgresql+asyncpg://cdss_user:cdss_pass@postgres:5432/cdss_db
       - REDIS_URL=redis://redis:6379/0
       - RATE_LIMIT_ENABLED=true
       - CHROMA_PERSIST_DIR=/app/data/chroma_db
+      - HF_HOME=/app/data/huggingface
+      - TRANSFORMERS_CACHE=/app/data/huggingface
+      - SENTENCE_TRANSFORMERS_HOME=/app/data/huggingface
       - APP_ENV=production
       - DEBUG=false
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=cdss
+      - KEYCLOAK_CLIENT_ID=cdss-api
+      - KEYCLOAK_CLIENT_SECRET=cdss-api-secret
       - KIE_SERVER_URL=http://kie_server:8080
       - KIE_SERVER_USER=kieserver
       - KIE_SERVER_PASSWORD=kieserver1!
@@ -29,6 +39,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      keycloak:
+        condition: service_started
     restart: unless-stopped
     networks:
       - cdss_network
@@ -39,8 +51,30 @@ services:
       retries: 3
       start_period: 60s
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.5
+    container_name: cdss_keycloak
+    command: ["start-dev", "--http-port=8080", "--import-realm"]
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_HOSTNAME_STRICT=false
+      - KC_HOSTNAME_STRICT_HTTPS=false
+      - KC_HTTP_ENABLED=true
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./deployment/keycloak/cdss-realm.json:/opt/keycloak/data/import/cdss-realm.json:ro
+    restart: unless-stopped
+    networks:
+      - cdss_network
+
   kie_server:
-    image: quay.io/kiegroup/kie-server:latest
+    build:
+      context: .
+      dockerfile: deployment/kie-server/Dockerfile
+      args:
+        KIE_VERSION: 7.74.1.Final
     container_name: cdss_kie_server
     ports:
       - "8180:8080"
@@ -52,14 +86,11 @@ services:
       - KIE_SERVER_STARTUP_STRATEGY=LocalContainersStartupStrategy
       - KIE_SERVER_CONTAINER_DEPLOYMENT=acs-clinical-rules=com.inorder.clinical:acs-rules:1.0.0
       - JAVA_OPTS=-Xms512m -Xmx1024m
-    volumes:
-      - ./rules/drools-rules:/opt/jboss/wildfly/standalone/deployments/rules:ro
-      - kie_data:/opt/jboss/wildfly/standalone/data
     restart: unless-stopped
     networks:
       - cdss_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/kie-server/services/rest/server"]
+      test: ["CMD-SHELL", "curl -fsS -u 'kieserver:kieserver1!' -H 'Accept: application/json' http://localhost:8080/kie-server/services/rest/server/containers/acs-clinical-rules | grep -q '\"type\" : \"SUCCESS\"'"]
       interval: 30s
       timeout: 10s
       retries: 5

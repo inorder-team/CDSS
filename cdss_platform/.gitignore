@@ -18,6 +18,7 @@ build/
 
 # Data & Logs (keep structure, not content)
 data/chroma_db/
+data/huggingface/
 data/cdss.db
 logs/*.log
 logs/*.jsonl
@@ -30,6 +31,7 @@ logs/*.jsonl
 # OS
 .DS_Store
 Thumbs.db
+~$*.docx
 
 # Testing
 .pytest_cache/

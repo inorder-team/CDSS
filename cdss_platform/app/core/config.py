@@ -53,6 +53,8 @@ class Settings(BaseSettings):
 
     # ── Anthropic ────────────────────────────────────────────────────────────
     anthropic_api_key: str = ""
+    openai_api_key:    str = ""
+    openai_model:      str = "gpt-4o-mini"
 
     # ── ChromaDB ─────────────────────────────────────────────────────────────
     chroma_persist_dir:        str = "./data/chroma_db"
@@ -90,7 +92,7 @@ class Settings(BaseSettings):
     jwks_uri_override: str = ""
 
     # ── LLM / Clinical AI ────────────────────────────────────────────────────
-    llm_model:                  str   = "claude-sonnet-4-5"
+    llm_model:                  str   = "gpt-4o-mini"
     llm_max_tokens:             int   = 2000
     rag_top_k:                  int   = 3
     rag_similarity_threshold:   float = 0.3

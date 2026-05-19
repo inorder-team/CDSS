@@ -126,6 +126,19 @@ def _map_lesion_category(raw: Optional[str]) -> Optional[str]:
     return mapping.get(raw or "", raw)
 
 
+def _map_acs_type(raw: Optional[str]) -> str:
+    """Normalise API ACS strings to the Java enum values used in the KJAR."""
+    mapping = {
+        "STEMI": AcsType.STEMI.value,
+        "NSTEMI": AcsType.NSTEMI.value,
+        "UNSTABLE_ANGINA": AcsType.UNSTABLE_ANGINA.value,
+        "UA": AcsType.UNSTABLE_ANGINA.value,
+        "Diagnostic CAG": "DIAGNOSTIC_CAG",
+        "DIAGNOSTIC_CAG": "DIAGNOSTIC_CAG",
+    }
+    return mapping.get(raw or "", raw or "NSTEMI")
+
+
 def _build_kie_payload(
     acs_case: AcsCase,
     cag_finding: Optional[CagFinding],
@@ -137,7 +150,7 @@ def _build_kie_payload(
         {
             "com.inorder.clinical.acs.model.AcsCase": {
                 "caseId": case_id,
-                "acsType": acs_case.acsType,
+                "acsType": _map_acs_type(acs_case.acsType),
                 "timiScore": acs_case.timiScore,
                 "graceScore": acs_case.graceScore,
                 "haemodynamicInstability": acs_case.haemodynamicInstability,
@@ -168,20 +181,26 @@ def _build_kie_payload(
             }
         })
 
+    commands: list[dict] = [
+        {"insert": {"object": f, "return-object": False}}
+        for f in facts
+    ]
+    commands.extend([
+        {"fire-all-rules": {"out-identifier": "rulesFired"}},
+        {"get-objects": {"out-identifier": "recommendations"}},
+    ])
+
     return {
         "lookup": f"{KIE_CONTAINER}_stateless",
-        "commands": [
-            {"batch-execution": {"commands": [{"insert": {"object": f}} for f in facts]
-            + [{"fire-all-rules": {}}, {"get-objects": {"out-identifier": "recommendations"}}]}}
-        ],
+        "commands": commands,
     }
 
 
-async def httpx(payload: dict) -> Optional[dict]:
+async def _call_kie_server(payload: dict) -> Optional[dict]:
     """POST to KIE Server and return raw JSON response."""
     url = (
         f"{KIE_BASE_URL}/kie-server/services/rest/server"
-        f"/containers/{KIE_CONTAINER}/ksession/stateless"
+        f"/containers/instances/{KIE_CONTAINER}"
     )
     try:
         async with httpx.AsyncClient(timeout=KIE_TIMEOUT) as client:
@@ -211,7 +230,12 @@ def _parse_kie_response(raw: dict) -> list[DroolsRecommendation]:
         results = raw.get("result", {}).get("execution-results", {}).get("results", [])
         for result_item in results:
             value = result_item.get("value", {})
-            objects = value.get("objects", []) if isinstance(value, dict) else []
+            if isinstance(value, dict):
+                objects = value.get("objects", [])
+            elif isinstance(value, list):
+                objects = value
+            else:
+                objects = []
             for obj in objects:
                 rec_data = obj.get("com.inorder.clinical.acs.model.Recommendation", {})
                 if rec_data:
@@ -457,7 +481,7 @@ async def execute_acs_rules(
     case_id = acs_data.get("caseId", "CASE-UNKNOWN")
 
     acs_case = AcsCase(
-        acsType=acs_data.get("acsType", "NSTEMI"),
+        acsType=_map_acs_type(acs_data.get("acsType", "NSTEMI")),
         timiScore=acs_data.get("timiScore"),
         graceScore=acs_data.get("graceScore"),
         haemodynamicInstability=acs_data.get("haemodynamicInstability", False),
@@ -486,7 +510,7 @@ async def execute_acs_rules(
 
     # Try KIE Server first
     kie_payload = _build_kie_payload(acs_case, cag_finding, request_id, case_id)
-    #kie_raw = await _call_kie_server(kie_payload)
+    kie_raw = await _call_kie_server(kie_payload)
 
     fallback_used = False
     recommendations: list[DroolsRecommendation] = []

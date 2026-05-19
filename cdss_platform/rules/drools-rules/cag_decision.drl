@@ -19,7 +19,7 @@ then
         RecommendationType.PCI,
         "CAG-PCI-ONE-TWO-VESSEL",
         "PCI: stent culprit lesion initially and achieve revascularisation within 6 weeks of MI, considering general condition, co-morbidities and finances.",
-        "CAG shows ≥70% disease in 1–2 epicardial vessels.",
+        "CAG shows >=70% disease in 1-2 epicardial vessels.",
         "Index culprit PCI; complete revascularisation within 6 weeks when appropriate"
     ));
 end
@@ -38,7 +38,7 @@ then
         RecommendationType.CABG,
         "CAG-CABG-MULTIVESSEL",
         "CABG preferred.",
-        "CAG shows ≥70% multivessel disease.",
+        "CAG shows >=70% multivessel disease.",
         "Heart-team/surgical pathway"
     ));
 end
@@ -58,7 +58,7 @@ then
     insert(new Recommendation(
         RecommendationType.PHYSIOLOGY_OR_STRESS_IMAGING,
         "CAG-BORDERLINE-PHYSIOLOGY-STRESS",
-        "For a 50–69% borderline lesion, perform physiology testing with FFR ≤0.80 or stress imaging such as MPI. Avoid FFR for culprit vessel in ACS; borderline non-culprit lesions may be assessed in the same setting.",
+        "For a 50-69% borderline lesion, perform physiology testing with FFR <=0.80 or stress imaging such as MPI. Avoid FFR for culprit vessel in ACS; borderline non-culprit lesions may be assessed in the same setting.",
         "Borderline stenosis requires ischaemia confirmation before revascularisation.",
         "After a few weeks unless assessing non-culprit lesion in same setting"
     ));
@@ -81,7 +81,7 @@ then
         RecommendationType.PCI,
         "CAG-BORDERLINE-ISCHAEMIC-REVASCULARISE",
         "Treat as PCI or CABG according to coronary anatomy.",
-        "Borderline lesion is ischaemic by FFR ≤0.80.",
+        "Borderline lesion is ischaemic by FFR <=0.80.",
         "Per anatomy"
     ));
 end
