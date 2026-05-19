@@ -34,7 +34,7 @@ from app.core.audit import audit_logger
 from app.core.config import get_settings
 from app.core.security import (
     TokenPayload,
-    require_cardiologist,
+    require_clinical,
     require_recommendation_create,
     require_recommendation_read,
 )
@@ -210,9 +210,9 @@ async def create_recommendation(
 async def submit_human_review(
     correlation_id: str,
     review: HumanReviewRequest,
-    current_user: TokenPayload = Depends(require_cardiologist),
+    current_user: TokenPayload = Depends(require_clinical),
 ) -> HumanReviewResponse:
-    """Submit human review decision for a pending recommendation."""
+    """Submit clinician review decision for a pending recommendation."""
 
     valid_actions = {"approve", "reject", "edit"}
     if review.action not in valid_actions:
@@ -227,11 +227,14 @@ async def submit_human_review(
         "edit":    DecisionStatus.APPROVED,
     }[review.action]
 
+    effective_reviewer_id = review.reviewer_id or current_user.sub
+    effective_reviewer_role = review.reviewer_role or current_user.role
+
     try:
         audit_logger.log_human_review(
             correlation_id=correlation_id,
-            reviewer_id=review.reviewer_id,
-            reviewer_role=review.reviewer_role,
+            reviewer_id=effective_reviewer_id,
+            reviewer_role=effective_reviewer_role,
             action=review.action,
             notes=review.notes,
         )
@@ -240,6 +243,12 @@ async def submit_human_review(
 
     if correlation_id in _pending_decisions:
         _pending_decisions[correlation_id].recommendation.decision_status = final_status
+        if review.action == "edit" and review.edited_summary:
+            _pending_decisions[correlation_id].recommendation.summary = review.edited_summary
+            _pending_decisions[correlation_id].recommendation.human_review_note = (
+                f"Edited and approved by {effective_reviewer_id}: "
+                f"{review.notes or 'No additional notes.'}"
+            )
 
     logger.info(
         "[HUMAN REVIEW] corr={} action={}",
@@ -250,7 +259,7 @@ async def submit_human_review(
     return HumanReviewResponse(
         correlation_id=correlation_id,
         final_status=final_status,
-        reviewed_by=review.reviewer_id,
+        reviewed_by=effective_reviewer_id,
         audit_logged=True,
     )
 

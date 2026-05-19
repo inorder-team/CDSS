@@ -42,9 +42,9 @@ then
     insert(new Recommendation(
         RecommendationType.FIBRINOLYSIS_PHARMACOINVASIVE_PCI,
         "ACS-STEMI-FIBRINOLYSIS-PHARMACOINVASIVE",
-        "Give weight-based tenecteplase if eligible, facilitate transfer to a PCI-capable centre, and plan pharmacoinvasive PCI 3–24 hours later.",
+        "Give weight-based tenecteplase if eligible, facilitate transfer to a PCI-capable centre, and plan pharmacoinvasive PCI 3-24 hours later.",
         "Primary PCI pathway is not available close by or expected FMC-to-balloon time exceeds approximately 120 minutes.",
-        "Immediate, then PCI in 3–24 hours"
+        "Immediate, then PCI in 3-24 hours"
     ));
 end
 
@@ -69,9 +69,9 @@ then
     insert(new Recommendation(
         RecommendationType.EARLY_INVASIVE_CAG,
         "ACS-NSTE-HIGH-RISK-EARLY-INVASIVE",
-        "Early invasive strategy: diagnostic CAG within 24 hours; use ≤2 hours when truly crashing; choose PCI or CABG per the CAG anatomy tree.",
-        "High-risk NSTE-ACS feature present: TIMI ≥3, GRACE >140, instability, recurrent ischaemia, dynamic ST/T change, or major troponin rise.",
-        "≤24 hours; ≤2 hours if unstable"
+        "Early invasive strategy: diagnostic CAG within 24 hours; use <=2 hours when truly crashing; choose PCI or CABG per the CAG anatomy tree.",
+        "High-risk NSTE-ACS feature present: TIMI >=3, GRACE >140, instability, recurrent ischaemia, dynamic ST/T change, or major troponin rise.",
+        "<=24 hours; <=2 hours if unstable"
     ));
 end
 

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kmodule xmlns="http://www.drools.org/xsd/kmodule">
+  <kbase name="acs-clinical-rules-kbase" packages="rules" default="true">
+    <ksession name="acs-clinical-rules_stateless" type="stateless" default="true"/>
+  </kbase>
+</kmodule>

@@ -70,6 +70,7 @@
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
+      "secret": "cdss-api-secret",
       "bearerOnly": false,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
@@ -78,7 +79,36 @@
       "redirectUris": ["http://localhost:8000/*", "https://cdss.your-domain.com/*"],
       "webOrigins": ["+"],
       "defaultClientScopes": ["openid", "profile", "email", "roles"],
-      "optionalClientScopes": ["address", "phone", "offline_access"]
+      "optionalClientScopes": ["address", "phone", "offline_access"],
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups"
+          }
+        }
+      ]
     },
     {
       "clientId": "trust-care-hmis-client",
@@ -177,6 +207,16 @@
       "credentials": [{ "type": "password", "value": "Doctor2@cdss!", "temporary": false }],
       "realmRoles": ["CLINICIAN"],
       "groups": ["/clinical-group"],
+      "attributes": { "organization_id": ["trust-care-hospital"], "source_system": ["EMR"] }
+    },
+    {
+      "username": "bismita-dr",
+      "email": "bismita.dr@trust-care.local",
+      "firstName": "Bismita", "lastName": "Clinician",
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "Bismita@cdss1!", "temporary": false }],
+      "realmRoles": ["CLINICIAN"],
+      "groups": [],
       "attributes": { "organization_id": ["trust-care-hospital"], "source_system": ["EMR"] }
     },
     {

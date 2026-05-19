@@ -10,12 +10,13 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from loguru import logger
 from pydantic import BaseModel, Field
 
 from app.core.audit import audit_logger
 from app.core.config import get_settings
+from app.core.security import TokenPayload, require_recommendation_create
 from app.services.rules.drools_client import execute_acs_rules, DroolsRecommendation
 
 settings = get_settings()
@@ -238,6 +239,7 @@ def _format_nlp_summary(
 async def acs_recommendations(
     request_body: AcsRecommendationRequest,
     http_request: Request,
+    current_user: TokenPayload = Depends(require_recommendation_create),
 ) -> AcsRecommendationResponse:
     """
     POST /clinical-decision-support/acs/recommendations
@@ -259,7 +261,8 @@ async def acs_recommendations(
     logger.info(
         f"[ACS] Incoming request | requestId={correlation_id} "
         f"acsType={acs_type} "
-        f"patient={request_body.patient.patientId if request_body.patient else 'N/A'}"
+        f"patient={request_body.patient.patientId if request_body.patient else 'N/A'} "
+        f"user={current_user.sub} role={current_user.role}"
     )
 
     # Build payload dict for Drools client
@@ -283,16 +286,17 @@ async def acs_recommendations(
 
     # Audit log
         # Audit log – safe wrapper
-        try:
-            audit_logger.log_clinical_decision(
-                correlation_id=correlation_id,
-                patient_id=request_body.patient.patientId if request_body.patient else "UNKNOWN",
-                decision_status="rules_executed",
-                confidence_score=1.0,
-                recommendation_summary=f"ACS_TYPE={acs_type} RULES_FIRED={drools_result.rule_count_fired}",
-            )
-        except Exception:
-            pass
+    try:
+        audit_logger.log_decision(
+            correlation_id=correlation_id,
+            patient_id=request_body.patient.patientId if request_body.patient else "UNKNOWN",
+            decision_status="rules_executed",
+            confidence=1.0,
+            requires_human_review=True,
+            recommendation_summary=f"ACS_TYPE={acs_type} RULES_FIRED={drools_result.rule_count_fired}",
+        )
+    except Exception:
+        pass
 
     # Build response
     rec_items = [

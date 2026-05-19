@@ -309,6 +309,11 @@ defaults = {
     "correlation_id": None,
     "active_tab": "ACS Pathway",
     "auth_token": None,
+    "auth_user": None,
+    "auth_role": None,
+    "acs_payload": None,
+    "active_result_source": None,
+    "reviewed_recommendations": {},
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -331,17 +336,21 @@ def _add_audit(event: str, detail: str, status: str = "INFO"):
     })
 
 
-def _post_acs(payload: dict) -> dict:
-    resp = requests.post(ACS_ENDPOINT, json=payload, timeout=120)
+def _auth_headers(token: Optional[str]) -> dict:
+    headers = {"Accept": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
+def _post_acs(payload: dict, token: Optional[str]) -> dict:
+    resp = requests.post(ACS_ENDPOINT, json=payload, headers=_auth_headers(token), timeout=120)
     resp.raise_for_status()
     return resp.json()
 
 
 def _post_rag(payload: dict, token: Optional[str]) -> dict:
-    headers = {}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    resp = requests.post(RAG_ENDPOINT, json=payload, headers=headers, timeout=120)
+    resp = requests.post(RAG_ENDPOINT, json=payload, headers=_auth_headers(token), timeout=120)
     resp.raise_for_status()
     return resp.json()
 
@@ -367,25 +376,55 @@ def _get_token(username: str, password: str) -> Optional[str]:
         return None
 
 
-def _submit_review(correlation_id: str, action: str, notes: str, token: Optional[str]) -> dict:
-    headers = {}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
+def _get_user_info(token: Optional[str]) -> Optional[dict]:
+    if not token:
+        return None
+    try:
+        r = requests.get(
+            f"{FASTAPI_BASE}/api/v1/auth/me",
+            headers=_auth_headers(token),
+            timeout=10,
+        )
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        return None
+
+
+def _submit_review(
+    correlation_id: str,
+    action: str,
+    notes: str,
+    token: Optional[str],
+    edited_summary: Optional[str] = None,
+    reviewer_id: Optional[str] = None,
+    reviewer_role: Optional[str] = None,
+) -> dict:
     payload = {
         "correlation_id": correlation_id,
-        "reviewer_id": st.session_state.get("reviewer_id", "DR-UNKNOWN"),
-        "reviewer_role": "CARDIOLOGIST",
+        "reviewer_id": reviewer_id or st.session_state.get("reviewer_id", "DR-UNKNOWN"),
+        "reviewer_role": reviewer_role or st.session_state.get("auth_role") or "CLINICIAN",
         "action": action,
         "notes": notes,
+        "edited_summary": edited_summary,
     }
     resp = requests.post(
         f"{REVIEW_BASE}/{correlation_id}/review",
         json=payload,
-        headers=headers,
+        headers=_auth_headers(token),
         timeout=15,
     )
     resp.raise_for_status()
     return resp.json()
+
+
+def _store_reviewed_text(correlation_id: str, status: str, notes: str, revised_summary: Optional[str] = None) -> None:
+    st.session_state.reviewed_recommendations[correlation_id] = {
+        "status": status,
+        "notes": notes,
+        "revised_summary": revised_summary,
+        "reviewed_at": _now_iso(),
+    }
 
 
 def _priority_emoji(p: str) -> str:
@@ -401,8 +440,8 @@ with st.sidebar:
     st.markdown("---")
 
     st.markdown("### 🔐 Clinician Login")
-    reviewer_id = st.text_input("Clinician ID", value="DR-CARDIO-001", key="reviewer_id_input")
-    reviewer_pass = st.text_input("Password", type="password", value="SecurePass123!", key="reviewer_pass")
+    reviewer_id = st.text_input("Clinician ID", value="bismita-dr", key="reviewer_id_input")
+    reviewer_pass = st.text_input("Password", type="password", value="Bismita@cdss1!", key="reviewer_pass")
 
     if st.button("🔑 Login", use_container_width=True):
         token = _get_token(
@@ -412,11 +451,24 @@ with st.sidebar:
         if token:
             st.session_state.auth_token = token
             st.session_state["reviewer_id"] = reviewer_id
-            st.success(f"✅ Logged in as {reviewer_id}")
-            _add_audit("LOGIN", f"Clinician {reviewer_id} authenticated", "SUCCESS")
+            user_info = _get_user_info(token) or {}
+            st.session_state.auth_user = user_info
+            st.session_state.auth_role = user_info.get("role") or "CLINICIAN"
+            st.success(f"Logged in as {reviewer_id} ({st.session_state.auth_role})")
+            _add_audit("LOGIN", f"Clinician {reviewer_id} authenticated as {st.session_state.auth_role}", "SUCCESS")
         else:
             st.session_state["reviewer_id"] = reviewer_id
             st.session_state.auth_token = None
+            st.session_state.auth_user = None
+            st.session_state.auth_role = None
+
+    if st.session_state.auth_token:
+        st.markdown(
+            f"**Authenticated:** `{st.session_state.get('reviewer_id')}`  "
+            f"Role: `{st.session_state.get('auth_role') or 'UNKNOWN'}`"
+        )
+    else:
+        st.info("Login before generating Drools or RAG recommendations.")
 
     st.markdown("---")
     st.markdown("### ℹ️ System Info")
@@ -433,7 +485,7 @@ with st.sidebar:
             st.markdown(f"{icon} `{a['ts'][:19]}` **{a['event']}**")
 
     if st.button("🗑️ Clear Session", use_container_width=True):
-        for k in ["acs_result", "rag_result", "audit_trail", "review_status", "correlation_id"]:
+        for k in ["acs_result", "rag_result", "audit_trail", "review_status", "correlation_id", "acs_payload", "active_result_source"]:
             st.session_state[k] = None if k != "audit_trail" else []
         st.rerun()
 
@@ -557,6 +609,10 @@ with tab_acs:
 
         # Submit button
         if st.button("🚀 Execute ACS Clinical Rules", type="primary", use_container_width=True):
+            if not st.session_state.auth_token:
+                st.error("Login first so the ACS request is sent with a valid Keycloak bearer token.")
+                st.stop()
+
             request_id = f"REQ-ACS-{uuid.uuid4().hex[:8].upper()}"
             case_id = f"ACS-CASE-{uuid.uuid4().hex[:8].upper()}"
 
@@ -617,9 +673,12 @@ with tab_acs:
 
             with st.spinner("⚙️ Executing clinical pathway rules..."):
                 try:
-                    result = _post_acs(acs_payload)
+                    result = _post_acs(acs_payload, st.session_state.auth_token)
                     st.session_state.acs_result = result
+                    st.session_state.acs_payload = acs_payload
                     st.session_state.correlation_id = request_id
+                    st.session_state.active_result_source = "acs"
+                    st.session_state.review_status = None
                     _add_audit(
                         "ACS_RULES_EXECUTED",
                         f"requestId={request_id} acsType={acs_type} rules_fired={result.get('rulesFired',0)}",
@@ -759,14 +818,16 @@ with tab_rag:
         consent_ok = st.checkbox("✅ Patient consent verified", value=True)
 
         if st.button("🧠 Generate RAG + LLM Recommendation", type="primary", use_container_width=True):
-            if not consent_ok:
+            if not st.session_state.auth_token:
+                st.error("Login first so the RAG request is sent with a valid Keycloak bearer token.")
+            elif not consent_ok:
                 st.error("❌ Patient consent must be verified before generating recommendations.")
             else:
                 rag_payload = {
                     "patientId": rag_patient_id,
                     "encounterId": rag_enc_id,
                     "userId": st.session_state.get("reviewer_id", "DR-UNKNOWN"),
-                    "userRole": "CARDIOLOGIST",
+                    "userRole": st.session_state.get("auth_role") or "CLINICIAN",
                     "query": rag_query,
                     "consentVerified": True,
                     "patientContext": {
@@ -797,6 +858,8 @@ with tab_rag:
                         result = _post_rag(rag_payload, st.session_state.auth_token)
                         st.session_state.rag_result = result
                         st.session_state.correlation_id = result.get("correlation_id")
+                        st.session_state.active_result_source = "rag"
+                        st.session_state.review_status = None
                         _add_audit(
                             "RAG_LLM_RECOMMENDATION",
                             f"patient={rag_patient_id} corr={result.get('correlation_id')} "
@@ -880,10 +943,13 @@ with tab_review:
         st.markdown(f"**Correlation ID:** `{corr_id}`")
 
         # Show current recommendation summary
-        active_result = st.session_state.acs_result or st.session_state.rag_result
+        active_source = st.session_state.get("active_result_source")
+        active_result = st.session_state.rag_result if active_source == "rag" else st.session_state.acs_result
+        if active_result is None:
+            active_result = st.session_state.acs_result or st.session_state.rag_result
         if active_result:
             with st.expander("📋 View Recommendation Summary", expanded=True):
-                if st.session_state.acs_result:
+                if active_source == "acs" or (active_source is None and st.session_state.acs_result):
                     recs = st.session_state.acs_result.get("recommendations", [])
                     for rec in recs:
                         emoji = _priority_emoji(rec.get("priority", "HIGH"))
@@ -893,10 +959,19 @@ with tab_review:
                     rec = st.session_state.rag_result.get("recommendation", {})
                     st.write(rec.get("summary", ""))
 
+                prior_review = st.session_state.reviewed_recommendations.get(corr_id)
+                if prior_review:
+                    st.info(
+                        f"Current local review status: {prior_review.get('status')} "
+                        f"at {prior_review.get('reviewed_at')}"
+                    )
+                    if prior_review.get("revised_summary"):
+                        st.write(prior_review["revised_summary"])
+
         st.markdown("---")
         st.markdown("#### 🩺 Clinician Decision")
 
-        reviewer_name = st.text_input("Reviewer Name / ID", value=st.session_state.get("reviewer_id", "DR-CARDIO-001"))
+        reviewer_name = st.text_input("Reviewer Name / ID", value=st.session_state.get("reviewer_id", "bismita-dr"))
         review_notes = st.text_area(
             "Clinical Notes / Justification",
             placeholder="Enter your clinical assessment, modifications, or reason for rejection...",
@@ -923,8 +998,16 @@ with tab_review:
                 action = "approve"
                 with st.spinner("Submitting approval..."):
                     try:
-                        resp = _submit_review(corr_id, action, review_notes, st.session_state.auth_token)
+                        resp = _submit_review(
+                            corr_id,
+                            action,
+                            review_notes,
+                            st.session_state.auth_token,
+                            reviewer_id=reviewer_name,
+                            reviewer_role=st.session_state.get("auth_role") or "CLINICIAN",
+                        )
                         st.session_state.review_status = "APPROVED"
+                        _store_reviewed_text(corr_id, "APPROVED", review_notes)
                         _add_audit("REVIEW_APPROVED", f"reviewer={reviewer_name} corr={corr_id}", "SUCCESS")
                         st.success("✅ Recommendation **APPROVED** and logged to audit trail.")
                         st.balloons()
@@ -937,10 +1020,22 @@ with tab_review:
         with b2:
             if st.button("✏️ REVISE", use_container_width=True, help="Approve with modifications"):
                 action = "edit"
+                if not revised_summary or not revised_summary.strip():
+                    st.error("Enter the modified recommendation text before revising.")
+                    st.stop()
                 with st.spinner("Submitting revision..."):
                     try:
-                        resp = _submit_review(corr_id, action, review_notes, st.session_state.auth_token)
+                        resp = _submit_review(
+                            corr_id,
+                            action,
+                            review_notes,
+                            st.session_state.auth_token,
+                            edited_summary=revised_summary,
+                            reviewer_id=reviewer_name,
+                            reviewer_role=st.session_state.get("auth_role") or "CLINICIAN",
+                        )
                         st.session_state.review_status = "REVISED"
+                        _store_reviewed_text(corr_id, "REVISED", review_notes, revised_summary)
                         _add_audit("REVIEW_REVISED", f"reviewer={reviewer_name} corr={corr_id}", "SUCCESS")
                         st.info("✏️ Recommendation **REVISED** and logged.")
                     except Exception as e:
@@ -956,8 +1051,16 @@ with tab_review:
                     action = "reject"
                     with st.spinner("Submitting rejection..."):
                         try:
-                            resp = _submit_review(corr_id, action, review_notes, st.session_state.auth_token)
+                            resp = _submit_review(
+                                corr_id,
+                                action,
+                                review_notes,
+                                st.session_state.auth_token,
+                                reviewer_id=reviewer_name,
+                                reviewer_role=st.session_state.get("auth_role") or "CLINICIAN",
+                            )
                             st.session_state.review_status = "REJECTED"
+                            _store_reviewed_text(corr_id, "REJECTED", review_notes)
                             _add_audit("REVIEW_REJECTED", f"reviewer={reviewer_name} corr={corr_id} reason={review_notes[:80]}", "INFO")
                             st.warning("❌ Recommendation **REJECTED** and logged.")
                         except Exception as e:
@@ -1075,6 +1178,39 @@ with tab_payload:
 
         st.code(json.dumps(sample_stemi, indent=2), language="json")
         st.caption(f"Endpoint: POST {ACS_ENDPOINT}")
+
+        default_payload = st.session_state.acs_payload or sample_stemi
+        raw_acs_payload = st.text_area(
+            "Editable ACS JSON Payload",
+            value=json.dumps(default_payload, indent=2, default=str),
+            height=360,
+            key="raw_acs_payload_editor",
+        )
+        if st.button("Send Raw ACS Payload to Drools", type="primary", use_container_width=True):
+            if not st.session_state.auth_token:
+                st.error("Login first so the raw ACS payload is sent with a valid Keycloak bearer token.")
+            else:
+                try:
+                    payload = json.loads(raw_acs_payload)
+                    result = _post_acs(payload, st.session_state.auth_token)
+                    st.session_state.acs_payload = payload
+                    st.session_state.acs_result = result
+                    st.session_state.correlation_id = result.get("requestId") or payload.get("requestId")
+                    st.session_state.active_result_source = "acs"
+                    st.session_state.review_status = None
+                    _add_audit(
+                        "RAW_ACS_PAYLOAD_EXECUTED",
+                        f"requestId={st.session_state.correlation_id} rules_fired={result.get('rulesFired', 0)}",
+                        "SUCCESS",
+                    )
+                    st.success(
+                        f"Drools response received: {result.get('rulesFired', 0)} rules fired "
+                        f"via {'KIE Server' if result.get('kieServerUsed') else 'Python Fallback Engine'}."
+                    )
+                except json.JSONDecodeError as e:
+                    st.error(f"Invalid JSON payload: {e}")
+                except Exception as e:
+                    st.error(f"Raw ACS payload execution failed: {e}")
 
     with pinsp2:
         st.markdown("#### 📥 Last API Response")
