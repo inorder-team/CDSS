@@ -26,6 +26,7 @@ from statistics import mean
 from typing import Any, Optional
 
 import anthropic
+import httpx
 from loguru import logger
 
 from app.core.audit import audit_logger
@@ -57,6 +58,10 @@ def _get_anthropic_client() -> anthropic.AsyncAnthropic:
             api_key=settings.anthropic_api_key
         )
     return _anthropic_client
+
+
+def _has_openai_key() -> bool:
+    return bool(settings.openai_api_key and settings.openai_api_key != "your_openai_api_key_here")
 
 
 # ── Vitals normaliser ─────────────────────────────────────────────────────────
@@ -203,6 +208,50 @@ async def _call_claude(
         block.text for block in message.content if hasattr(block, "text")
     )
     return text, message.usage.input_tokens, message.usage.output_tokens
+
+
+async def _call_openai(
+    system_prompt: str, user_prompt: str
+) -> tuple[str, int, int]:
+    """
+    Call OpenAI Chat Completions using the configured OPENAI_API_KEY.
+    Returns (response_text, prompt_tokens, completion_tokens).
+    """
+    payload = {
+        "model": settings.openai_model or settings.llm_model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "max_tokens": 1500,
+        "temperature": 0.1,
+        "response_format": {"type": "json_object"},
+    }
+    headers = {
+        "Authorization": f"Bearer {settings.openai_api_key}",
+        "Content-Type": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=90) as client:
+        response = await client.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=payload,
+        )
+        response.raise_for_status()
+        data = response.json()
+    text = data["choices"][0]["message"]["content"] or ""
+    usage = data.get("usage", {})
+    return text, int(usage.get("prompt_tokens", 0)), int(usage.get("completion_tokens", 0))
+
+
+async def _call_llm(
+    system_prompt: str, user_prompt: str
+) -> tuple[str, int, int, str]:
+    if _has_openai_key():
+        text, prompt_tokens, completion_tokens = await _call_openai(system_prompt, user_prompt)
+        return text, prompt_tokens, completion_tokens, settings.openai_model or settings.llm_model
+    text, prompt_tokens, completion_tokens = await _call_claude(system_prompt, user_prompt)
+    return text, prompt_tokens, completion_tokens, settings.llm_model
 
 
 # ── JSON Parser ───────────────────────────────────────────────────────────────
@@ -354,11 +403,11 @@ class CDSSPipeline:
 
         llm_start = time.perf_counter()
         try:
-            raw_text, prompt_tokens, completion_tokens = await _call_claude(
+            raw_text, prompt_tokens, completion_tokens, model_used = await _call_llm(
                 system_prompt, user_prompt
             )
         except Exception as llm_err:
-            logger.error(f"[PIPELINE] Claude API error: {llm_err}")
+            logger.error(f"[PIPELINE] LLM API error: {llm_err}")
             raise RuntimeError(f"LLM inference failed: {llm_err}") from llm_err
 
         llm_latency = (time.perf_counter() - llm_start) * 1000
@@ -370,7 +419,7 @@ class CDSSPipeline:
         try:
             audit_logger.log_llm_call(
                 correlation_id=correlation_id,
-                model=settings.llm_model,
+                model=model_used,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 latency_ms=llm_latency,
@@ -507,7 +556,7 @@ class CDSSPipeline:
             recommendation=recommendation,
             pipeline_latency_ms=round(total_latency, 2),
             audit_logged=True,
-            model_version=settings.llm_model,
+            model_version=model_used,
         )
 
 

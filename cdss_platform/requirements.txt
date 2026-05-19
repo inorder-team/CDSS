@@ -19,6 +19,8 @@ anthropic>=0.40.0
 sqlalchemy==2.0.30
 alembic==1.13.1
 aiosqlite==0.20.0
+asyncpg==0.29.0
+redis==5.0.4
 
 # Async
 asyncio-mqtt==0.16.2

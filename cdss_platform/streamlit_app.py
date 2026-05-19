@@ -312,6 +312,7 @@ defaults = {
     "auth_user": None,
     "auth_role": None,
     "acs_payload": None,
+    "rag_payload": None,
     "active_result_source": None,
     "reviewed_recommendations": {},
 }
@@ -427,6 +428,90 @@ def _store_reviewed_text(correlation_id: str, status: str, notes: str, revised_s
     }
 
 
+def _split_clinical_items(raw: str) -> list[str]:
+    """Convert comma/newline clinical text into a compact list for the API payload."""
+    items: list[str] = []
+    for line in raw.replace(";", "\n").replace(",", "\n").splitlines():
+        item = line.strip()
+        if item:
+            items.append(item)
+    return items
+
+
+def _merge_unique(*groups: list[str]) -> list[str]:
+    seen: set[str] = set()
+    merged: list[str] = []
+    for group in groups:
+        for item in group:
+            normalized = item.strip()
+            if normalized and normalized.lower() != "none" and normalized.lower() not in seen:
+                seen.add(normalized.lower())
+                merged.append(normalized)
+    return merged
+
+
+RAG_RECOMMENDATION_FIELDS = [
+    ("Summary", "summary"),
+    ("Risk Stratification", "risk_stratification"),
+    ("Antiplatelet Guidance", "antiplatelet_guidance"),
+    ("Invasive Strategy", "invasive_strategy"),
+    ("Adjunct Therapy", "adjunct_therapy"),
+    ("Monitoring Plan", "monitoring_plan"),
+]
+
+
+def _format_rag_recommendations_for_review(rec: dict[str, Any]) -> str:
+    """Create a clinician-editable note from all structured RAG recommendation sections."""
+    sections: list[str] = []
+    for index, (label, field) in enumerate(RAG_RECOMMENDATION_FIELDS, start=1):
+        value = str(rec.get(field) or "").strip()
+        if value:
+            sections.append(f"{index}. {label}\n{value}")
+
+    safety_flags = rec.get("safety_flags") or {}
+    flags = safety_flags.get("flags") or []
+    if flags:
+        sections.append("Safety Flags\n" + "\n".join(f"- {flag}" for flag in flags))
+
+    return "\n\n".join(sections)
+
+
+def _format_acs_recommendations_for_review(result: dict[str, Any]) -> str:
+    """Create a clinician-editable note from Drools ACS recommendations."""
+    sections: list[str] = []
+    for index, rec in enumerate(result.get("recommendations", []) or [], start=1):
+        title = str(rec.get("type") or "ACS Recommendation").replace("_", " ").title()
+        lines = [
+            f"{index}. {title}",
+            str(rec.get("message") or "").strip(),
+        ]
+        rationale = str(rec.get("rationale") or "").strip()
+        urgency = str(rec.get("urgency") or "").strip()
+        code = str(rec.get("code") or "").strip()
+        source = str(rec.get("source") or "").strip()
+        if rationale:
+            lines.append(f"Rationale: {rationale}")
+        if urgency:
+            lines.append(f"Urgency: {urgency}")
+        if code or source:
+            lines.append(f"Code/Source: {code} {source}".strip())
+        sections.append("\n".join(line for line in lines if line.strip()))
+
+    narrative = str(result.get("nlpSummary") or "").strip()
+    if narrative:
+        sections.append("Clinical Narrative\n" + narrative)
+
+    return "\n\n".join(sections)
+
+
+def _active_recommendation_text(active_source: Optional[str], active_result: Optional[dict[str, Any]]) -> str:
+    if not active_result:
+        return ""
+    if active_source == "rag":
+        return _format_rag_recommendations_for_review(active_result.get("recommendation", {}) or {})
+    return _format_acs_recommendations_for_review(active_result)
+
+
 def _priority_emoji(p: str) -> str:
     return {"CRITICAL": "🔴", "URGENT": "🟠", "HIGH": "🟡", "MEDIUM": "🔵", "LOW": "⚪"}.get(p, "⚫")
 
@@ -474,7 +559,7 @@ with st.sidebar:
     st.markdown("### ℹ️ System Info")
     st.markdown("**API:** `localhost:8000`")
     st.markdown("**Rules:** Drools KIE Server")
-    st.markdown("**LLM:** Claude Sonnet 4")
+    st.markdown("**LLM:** OpenAI / configured LLM")
     st.markdown("**RAG:** ChromaDB")
 
     if st.session_state.audit_trail:
@@ -496,7 +581,7 @@ with st.sidebar:
 st.markdown("""
 <div class="cdss-header">
   <h1>🏥 CDSS Clinical Intelligence Platform</h1>
-  <p>AI-Powered EMR | Drools Rule Engine | RAG + Claude LLM | Clinician Review Workflow</p>
+  <p>AI-Powered EMR | Drools Rule Engine | RAG + LLM | Clinician Review Workflow</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -530,19 +615,35 @@ with tab_acs:
             st.markdown('<div class="panel"><div class="panel-title">👤 Patient & Encounter</div>', unsafe_allow_html=True)
 
             c1, c2 = st.columns(2)
-            patient_id = c1.text_input("Patient ID", value="PAT-000123")
-            mrn = c2.text_input("MRN", value="MRN-998877")
+            patient_id = c1.text_input("Patient ID", value="PAT-000123", key="acs_patient_id")
+            mrn = c2.text_input("MRN", value="MRN-998877", key="acs_mrn")
 
             c3, c4, c5 = st.columns(3)
-            age = c3.number_input("Age (yrs)", min_value=18, max_value=120, value=58)
-            sex = c4.selectbox("Sex", ["MALE", "FEMALE", "OTHER"])
-            encounter_type = c5.selectbox("Encounter Type", ["EMERGENCY", "OUTPATIENT", "INPATIENT"])
+            age = c3.number_input("Age (yrs)", min_value=18, max_value=120, value=58, key="acs_age")
+            acs_sex_options = ["MALE", "FEMALE", "OTHER"]
+            acs_encounter_options = ["EMERGENCY", "OUTPATIENT", "INPATIENT"]
+            if st.session_state.get("acs_sex") not in acs_sex_options:
+                st.session_state["acs_sex"] = "MALE"
+            if st.session_state.get("acs_encounter_type") not in acs_encounter_options:
+                st.session_state["acs_encounter_type"] = "EMERGENCY"
+            sex = c4.selectbox(
+                "Sex",
+                acs_sex_options,
+                index=acs_sex_options.index(st.session_state["acs_sex"]),
+                key="acs_sex",
+            )
+            encounter_type = c5.selectbox(
+                "Encounter Type",
+                acs_encounter_options,
+                index=acs_encounter_options.index(st.session_state["acs_encounter_type"]),
+                key="acs_encounter_type",
+            )
 
             st.markdown("---")
             st.markdown("**⏱️ Timing**")
             c6, c7 = st.columns(2)
-            fmc_to_balloon = c6.number_input("FMC→Balloon (min)", min_value=0, max_value=999, value=85)
-            pci_available = c7.checkbox("PCI Facility Close By", value=True)
+            fmc_to_balloon = c6.number_input("FMC→Balloon (min)", min_value=0, max_value=999, value=85, key="acs_fmc_to_balloon")
+            pci_available = c7.checkbox("PCI Facility Close By", value=True, key="acs_pci_available")
 
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -552,29 +653,30 @@ with tab_acs:
             acs_type = st.selectbox(
                 "ACS Type",
                 ["STEMI", "NSTEMI", "Diagnostic CAG", "UNSTABLE_ANGINA"],
-                help="Select the ACS type for Drools rule execution"
+                help="Select the ACS type for Drools rule execution",
+                key="acs_type",
             )
 
             c8, c9 = st.columns(2)
-            timi_score = c8.number_input("TIMI Score (0-7)", min_value=0, max_value=7, value=3)
-            grace_score = c9.number_input("GRACE Score", min_value=0, max_value=500, value=145)
+            timi_score = c8.number_input("TIMI Score (0-7)", min_value=0, max_value=7, value=3, key="acs_timi_score")
+            grace_score = c9.number_input("GRACE Score", min_value=0, max_value=500, value=145, key="acs_grace_score")
 
             st.markdown("**⚠️ Risk Flags**")
             r1, r2, r3 = st.columns(3)
-            haemo_instab = r1.checkbox("Haemodynamic Instability")
-            elec_instab = r2.checkbox("Electrical Instability")
-            recur_ischaemia = r3.checkbox("Recurrent Ischaemia")
+            haemo_instab = r1.checkbox("Haemodynamic Instability", key="acs_haemo_instab")
+            elec_instab = r2.checkbox("Electrical Instability", key="acs_elec_instab")
+            recur_ischaemia = r3.checkbox("Recurrent Ischaemia", key="acs_recur_ischaemia")
             r4, r5 = st.columns(2)
-            dynamic_st = r4.checkbox("Dynamic ST/T Changes", value=True)
-            large_troponin = r5.checkbox("Large Troponin Rise", value=True)
+            dynamic_st = r4.checkbox("Dynamic ST/T Changes", value=True, key="acs_dynamic_st")
+            large_troponin = r5.checkbox("Large Troponin Rise", value=True, key="acs_large_troponin")
 
             st.markdown("**📊 Post-MI LV Status**")
             m1, m2 = st.columns(2)
-            delayed_presentation = m1.checkbox("Delayed Presentation")
-            lv_dysfunction = m2.checkbox("LV Dysfunction")
+            delayed_presentation = m1.checkbox("Delayed Presentation", key="acs_delayed_presentation")
+            lv_dysfunction = m2.checkbox("LV Dysfunction", key="acs_lv_dysfunction")
             if lv_dysfunction:
                 viable_options = {"Unknown": None, "Yes – Viable": True, "No – Non-viable": False}
-                viable_label = st.selectbox("Viable Myocardium", list(viable_options.keys()))
+                viable_label = st.selectbox("Viable Myocardium", list(viable_options.keys()), key="acs_viable_myocardium")
                 viable_myocardium = viable_options[viable_label]
             else:
                 viable_myocardium = None
@@ -585,7 +687,7 @@ with tab_acs:
             with st.container():
                 st.markdown('<div class="panel"><div class="panel-title">🔬 CAG Findings</div>', unsafe_allow_html=True)
 
-                cag_completed = st.checkbox("Diagnostic CAG Completed", value=True)
+                cag_completed = st.checkbox("Diagnostic CAG Completed", value=True, key="acs_cag_completed")
 
                 lesion_options = {
                     "≥70% – 1-2 Vessel": "GE_70_ONE_TWO_VESSEL",
@@ -593,17 +695,17 @@ with tab_acs:
                     "Borderline 50-69%": "BORDERLINE_50_TO_69",
                     "<50%": "LESS_THAN_50",
                 }
-                lesion_label = st.selectbox("Lesion Category", list(lesion_options.keys()))
+                lesion_label = st.selectbox("Lesion Category", list(lesion_options.keys()), key="acs_lesion_label")
                 lesion_category = lesion_options[lesion_label]
 
-                stenosis_pct = st.slider("Max Diameter Stenosis %", 0, 100, 90)
+                stenosis_pct = st.slider("Max Diameter Stenosis %", 0, 100, 90, key="acs_stenosis_pct")
 
                 f1, f2 = st.columns(2)
-                ffr_done = f1.checkbox("FFR Performed")
-                ffr_val = f1.number_input("FFR Value", min_value=0.0, max_value=1.0, value=0.75, step=0.01) if ffr_done else None
+                ffr_done = f1.checkbox("FFR Performed", key="acs_ffr_done")
+                ffr_val = f1.number_input("FFR Value", min_value=0.0, max_value=1.0, value=0.75, step=0.01, key="acs_ffr_val") if ffr_done else None
 
-                stress_done = f2.checkbox("Stress Imaging Performed")
-                stress_positive = f2.checkbox("Stress Imaging Positive for Ischaemia") if stress_done else None
+                stress_done = f2.checkbox("Stress Imaging Performed", key="acs_stress_done")
+                stress_positive = f2.checkbox("Stress Imaging Positive for Ischaemia", key="acs_stress_positive") if stress_done else None
 
                 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -679,6 +781,9 @@ with tab_acs:
                     st.session_state.correlation_id = request_id
                     st.session_state.active_result_source = "acs"
                     st.session_state.review_status = None
+                    generated_review_text = _format_acs_recommendations_for_review(result)
+                    st.session_state[f"clinical_review_notes_{request_id}"] = generated_review_text
+                    st.session_state[f"clinical_revised_summary_{request_id}"] = ""
                     _add_audit(
                         "ACS_RULES_EXECUTED",
                         f"requestId={request_id} acsType={acs_type} rules_fired={result.get('rulesFired',0)}",
@@ -740,6 +845,17 @@ with tab_acs:
             </div>
             """, unsafe_allow_html=True)
 
+            acs_review = st.session_state.reviewed_recommendations.get(r.get("requestId") or "")
+            if acs_review and acs_review.get("revised_summary"):
+                st.markdown("#### Final Recommendations")
+                st.text_area(
+                    "Approved / Approved Revised ACS Recommendation",
+                    value=acs_review.get("revised_summary", ""),
+                    height=180,
+                    disabled=True,
+                    key=f"acs_final_recommendation_{r.get('requestId')}",
+                )
+
             # Disclaimer
             st.markdown(f"""
             <div class="disclaimer">
@@ -762,7 +878,7 @@ with tab_acs:
 
 with tab_rag:
     st.markdown("### 🧠 RAG + LLM Clinical Recommendation")
-    st.markdown("Uses **ChromaDB RAG** + **Claude Sonnet** for evidence-based clinical guidance.")
+    st.markdown("Uses **ChromaDB RAG** + the configured LLM for evidence-based clinical guidance.")
 
     lc1, lc2 = st.columns([1, 1], gap="medium")
 
@@ -777,23 +893,64 @@ with tab_rag:
         rag_sex = c_b.selectbox("Sex", ["Male", "Female"], key="rag_sex")
         rag_enc_type = c_c.selectbox("Encounter", ["EMERGENCY", "OUTPATIENT", "INPATIENT"], key="rag_enc_type")
 
+        rag_chief_complaint = st.text_area(
+            "Chief Complaint / Presenting Problem",
+            value="Retrosternal chest pain for 6 hours with diaphoresis; troponin positive.",
+            height=70,
+            key="rag_chief_complaint",
+        )
+
         rag_diagnoses = st.multiselect(
             "Diagnoses / ICD Codes",
             ["NSTEMI", "STEMI", "ACS", "CKD", "Diabetes", "Hypertension", "Heart Failure", "AF"],
             default=["NSTEMI", "Hypertension"],
+            key="rag_diagnoses",
+        )
+        rag_extra_diagnoses = st.text_input(
+            "Additional Diagnoses (comma separated)",
+            value="Dyslipidemia",
+            key="rag_extra_diagnoses",
+        )
+
+        rag_ecg_findings = st.multiselect(
+            "ECG Findings",
+            [
+                "ST depression",
+                "T-wave inversion",
+                "ST elevation",
+                "New LBBB",
+                "Normal sinus rhythm",
+                "Atrial fibrillation",
+            ],
+            default=["ST depression"],
+            key="rag_ecg_findings",
+        )
+        rag_extra_ecg = st.text_input(
+            "Additional ECG / Imaging Findings",
+            value="No posterior STEMI pattern documented",
+            key="rag_extra_ecg",
         )
 
         st.markdown("**🩺 Vitals**")
         v1, v2, v3 = st.columns(3)
         sbp = v1.text_input("Systolic BP", value="138", key="sbp")
-        hr = v2.text_input("Heart Rate", value="92", key="hr")
-        spo2 = v3.text_input("SpO2 %", value="96", key="spo2")
+        dbp = v2.text_input("Diastolic BP", value="84", key="dbp")
+        hr = v3.text_input("Heart Rate", value="92", key="hr")
+        v4, v5, v6 = st.columns(3)
+        spo2 = v4.text_input("SpO2 %", value="96", key="spo2")
+        resp_rate = v5.text_input("Respiratory Rate", value="18", key="resp_rate")
+        temperature = v6.text_input("Temperature", value="36.8 C", key="temperature")
 
         st.markdown("**🧪 Labs**")
         l1, l2, l3 = st.columns(3)
         troponin = l1.text_input("Troponin", value="2.4 ng/mL", key="trop")
         egfr = l2.text_input("eGFR", value="52", key="egfr")
         creatinine = l3.text_input("Creatinine", value="1.4 mg/dL", key="creat")
+        l4, l5, l6, l7 = st.columns(4)
+        potassium = l4.text_input("Potassium", value="4.3 mmol/L", key="potassium")
+        haemoglobin = l5.text_input("Haemoglobin", value="12.8 g/dL", key="haemoglobin")
+        platelets = l6.text_input("Platelets", value="230 x10^9/L", key="platelets")
+        inr = l7.text_input("INR", value="1.0", key="inr")
 
         st.markdown("**💊 Current Medications**")
         rag_meds = st.multiselect(
@@ -801,21 +958,47 @@ with tab_rag:
             ["Aspirin 75mg", "Clopidogrel 75mg", "Ticagrelor 90mg", "Metformin 500mg",
              "Lisinopril 10mg", "Atorvastatin 40mg", "Metoprolol 25mg", "Furosemide 40mg"],
             default=["Aspirin 75mg", "Atorvastatin 40mg"],
+            key="rag_meds",
+        )
+        rag_extra_meds = st.text_area(
+            "Additional Medication Details",
+            value="Enoxaparin started in ED; PPI considered due dyspepsia history.",
+            height=70,
+            key="rag_extra_meds",
         )
 
         rag_allergies = st.multiselect(
             "Allergies / Contraindications",
             ["Penicillin", "Aspirin", "Contrast", "Sulfa", "None"],
             default=["None"],
+            key="rag_allergies",
+        )
+        rag_extra_allergies = st.text_input(
+            "Additional Allergies",
+            value="",
+            key="rag_extra_allergies",
+        )
+        rag_contraindications = st.text_area(
+            "Contraindications / Bleeding Risk Notes",
+            value="No active bleeding; no prior intracranial haemorrhage documented.",
+            height=70,
+            key="rag_contraindications",
+        )
+        rag_cardiac_history = st.text_area(
+            "Cardiac History / Prior Procedures",
+            value="Hypertension for 10 years; no prior PCI or CABG.",
+            height=70,
+            key="rag_cardiac_history",
         )
 
         rag_query = st.text_area(
             "Clinical Query",
             value="Patient with NSTEMI, hypertension and CKD stage 3. What is the optimal antiplatelet and revascularisation strategy?",
             height=100,
+            key="rag_query",
         )
 
-        consent_ok = st.checkbox("✅ Patient consent verified", value=True)
+        consent_ok = st.checkbox("✅ Patient consent verified", value=True, key="rag_consent_ok")
 
         if st.button("🧠 Generate RAG + LLM Recommendation", type="primary", use_container_width=True):
             if not st.session_state.auth_token:
@@ -823,35 +1006,52 @@ with tab_rag:
             elif not consent_ok:
                 st.error("❌ Patient consent must be verified before generating recommendations.")
             else:
+                diagnoses = _merge_unique(rag_diagnoses, _split_clinical_items(rag_extra_diagnoses))
+                ecg_findings = _merge_unique(rag_ecg_findings, _split_clinical_items(rag_extra_ecg))
+                medications = _merge_unique(rag_meds, _split_clinical_items(rag_extra_meds))
+                allergies = _merge_unique(
+                    [a for a in rag_allergies if a != "None"],
+                    _split_clinical_items(rag_extra_allergies),
+                )
+                contraindications = _split_clinical_items(rag_contraindications)
+                cardiac_history = _split_clinical_items(rag_cardiac_history)
                 rag_payload = {
                     "patientId": rag_patient_id,
                     "encounterId": rag_enc_id,
                     "userId": st.session_state.get("reviewer_id", "DR-UNKNOWN"),
                     "userRole": st.session_state.get("auth_role") or "CLINICIAN",
-                    "query": rag_query,
+                    "query": f"{rag_chief_complaint}\n\nClinical question: {rag_query}",
                     "consentVerified": True,
                     "patientContext": {
                         "age": rag_age,
                         "sex": rag_sex,
                         "encounterType": rag_enc_type,
-                        "diagnoses": rag_diagnoses,
+                        "diagnoses": diagnoses,
                         "vitals": {
-                            "systolicBp": sbp,
+                            "systolicBp": [sbp],
+                            "diastolicBp": [dbp],
                             "heartRate": hr,
                             "spo2": spo2,
+                            "respiratoryRate": resp_rate,
+                            "temperature": temperature,
                         },
                         "labs": {
                             "troponin": troponin,
                             "eGFR": egfr,
                             "creatinine": creatinine,
+                            "potassium": potassium,
+                            "haemoglobin": haemoglobin,
+                            "platelets": platelets,
+                            "INR": inr,
                         },
-                        "currentMedications": rag_meds,
-                        "allergies": [a for a in rag_allergies if a != "None"],
-                        "contraindications": [],
-                        "cardiacHistory": [],
-                        "ecgFindings": [],
+                        "currentMedications": medications,
+                        "allergies": allergies,
+                        "contraindications": contraindications,
+                        "cardiacHistory": cardiac_history,
+                        "ecgFindings": ecg_findings,
                     },
                 }
+                st.session_state.rag_payload = rag_payload
 
                 with st.spinner("🔍 Retrieving clinical evidence + generating LLM recommendation..."):
                     try:
@@ -860,6 +1060,10 @@ with tab_rag:
                         st.session_state.correlation_id = result.get("correlation_id")
                         st.session_state.active_result_source = "rag"
                         st.session_state.review_status = None
+                        generated_review_text = _format_rag_recommendations_for_review(result.get("recommendation", {}))
+                        if result.get("correlation_id"):
+                            st.session_state[f"rag_review_notes_{result.get('correlation_id')}"] = generated_review_text
+                            st.session_state[f"rag_revised_summary_{result.get('correlation_id')}"] = ""
                         _add_audit(
                             "RAG_LLM_RECOMMENDATION",
                             f"patient={rag_patient_id} corr={result.get('correlation_id')} "
@@ -870,6 +1074,10 @@ with tab_rag:
                     except Exception as e:
                         st.error(f"❌ RAG/LLM error: {e}")
                         _add_audit("RAG_LLM_ERROR", str(e), "ERROR")
+
+        if st.session_state.get("rag_payload"):
+            with st.expander("RAG API Payload Preview", expanded=False):
+                st.json(st.session_state.rag_payload)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -904,6 +1112,17 @@ with tab_rag:
                     with st.expander(label, expanded=(field == "summary")):
                         st.write(val)
 
+            generated_review_text = _format_rag_recommendations_for_review(rec)
+            if generated_review_text:
+                st.markdown("#### Generated RAG LLM Recommendations")
+                st.text_area(
+                    "Generated Recommendation Text",
+                    value=generated_review_text,
+                    height=220,
+                    disabled=True,
+                    key=f"rag_generated_recommendation_display_{r.get('correlation_id', 'latest')}",
+                )
+
             # Safety flags
             sf = rec.get("safety_flags", {})
             flags = sf.get("flags", [])
@@ -931,6 +1150,122 @@ with tab_rag:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 3 – CLINICIAN REVIEW
 # ════════════════════════════════════════════════════════════════════════════
+
+with tab_rag:
+    if st.session_state.rag_result:
+        r = st.session_state.rag_result
+        rec = r.get("recommendation", {})
+        corr_id = r.get("correlation_id")
+        prior_review = st.session_state.reviewed_recommendations.get(corr_id or "") or {}
+
+        st.markdown("---")
+        st.markdown("### Clinician Review for RAG LLM Recommendation")
+        st.caption(
+            f"Reviewer: {st.session_state.get('reviewer_id', 'bismita-dr')} | "
+            f"Role: {st.session_state.get('auth_role') or 'CLINICIAN'} | "
+            f"Correlation ID: {corr_id}"
+        )
+        if prior_review:
+            st.info(
+                f"Current local review status: {prior_review.get('status')} "
+                f"at {prior_review.get('reviewed_at')}"
+            )
+
+        generated_review_text = _format_rag_recommendations_for_review(rec)
+        review_note_key = f"rag_review_notes_{corr_id}"
+        revised_text_key = f"rag_revised_summary_{corr_id}"
+        final_recommendation_text = prior_review.get("revised_summary") or ""
+        if generated_review_text and (
+            review_note_key not in st.session_state
+            or st.session_state.get(review_note_key) in ("", rec.get("summary", ""))
+        ):
+            st.session_state[review_note_key] = prior_review.get("notes") or generated_review_text
+        if final_recommendation_text and st.session_state.get(revised_text_key) != final_recommendation_text:
+            st.session_state[revised_text_key] = final_recommendation_text
+
+        rag_review_notes = st.text_area(
+            "Clinician Review Note",
+            placeholder="RAG LLM generated recommendations will appear here for clinician review.",
+            height=220,
+            key=review_note_key,
+        )
+        rag_revised_summary = st.text_area(
+            "Revised Recommendation Text",
+            placeholder="After approval this shows the approved RAG recommendation. After revision this shows the clinician revised final recommendation.",
+            height=180,
+            key=revised_text_key,
+        )
+
+        rag_b1, rag_b2, rag_b3 = st.columns(3)
+        with rag_b1:
+            if st.button("Approve RAG Recommendation", type="primary", use_container_width=True, key=f"rag_approve_{corr_id}"):
+                if not st.session_state.auth_token:
+                    st.error("Login as bismita-dr before submitting review.")
+                else:
+                    try:
+                        _submit_review(
+                            corr_id,
+                            "approve",
+                            rag_review_notes,
+                            st.session_state.auth_token,
+                            reviewer_id=st.session_state.get("reviewer_id", "bismita-dr"),
+                            reviewer_role=st.session_state.get("auth_role") or "CLINICIAN",
+                        )
+                        st.session_state.review_status = "APPROVED"
+                        _store_reviewed_text(corr_id, "APPROVED", rag_review_notes, rag_review_notes)
+                        _add_audit("RAG_REVIEW_APPROVED", f"reviewer=bismita-dr corr={corr_id}", "SUCCESS")
+                        st.success("RAG recommendation approved and review submitted.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Review submit failed: {e}")
+        with rag_b2:
+            if st.button("Revise RAG Recommendation", use_container_width=True, key=f"rag_revise_{corr_id}"):
+                if not st.session_state.auth_token:
+                    st.error("Login as bismita-dr before submitting review.")
+                elif not rag_revised_summary.strip():
+                    st.error("Enter revised recommendation text before revising.")
+                else:
+                    try:
+                        _submit_review(
+                            corr_id,
+                            "edit",
+                            rag_review_notes,
+                            st.session_state.auth_token,
+                            edited_summary=rag_revised_summary,
+                            reviewer_id=st.session_state.get("reviewer_id", "bismita-dr"),
+                            reviewer_role=st.session_state.get("auth_role") or "CLINICIAN",
+                        )
+                        st.session_state.rag_result["recommendation"]["summary"] = rag_revised_summary
+                        st.session_state.review_status = "REVISED"
+                        _store_reviewed_text(corr_id, "REVISED", rag_review_notes, rag_revised_summary)
+                        _add_audit("RAG_REVIEW_REVISED", f"reviewer=bismita-dr corr={corr_id}", "SUCCESS")
+                        st.info("RAG recommendation revised and review submitted.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Review submit failed: {e}")
+        with rag_b3:
+            if st.button("Reject RAG Recommendation", use_container_width=True, key=f"rag_reject_{corr_id}"):
+                if not st.session_state.auth_token:
+                    st.error("Login as bismita-dr before submitting review.")
+                elif not rag_review_notes.strip():
+                    st.error("Enter rejection reason in clinician review notes.")
+                else:
+                    try:
+                        _submit_review(
+                            corr_id,
+                            "reject",
+                            rag_review_notes,
+                            st.session_state.auth_token,
+                            reviewer_id=st.session_state.get("reviewer_id", "bismita-dr"),
+                            reviewer_role=st.session_state.get("auth_role") or "CLINICIAN",
+                        )
+                        st.session_state.review_status = "REJECTED"
+                        _store_reviewed_text(corr_id, "REJECTED", rag_review_notes)
+                        _add_audit("RAG_REVIEW_REJECTED", f"reviewer=bismita-dr corr={corr_id}", "INFO")
+                        st.warning("RAG recommendation rejected and review submitted.")
+                    except Exception as e:
+                        st.error(f"Review submit failed: {e}")
+
 
 with tab_review:
     st.markdown("### ✅ Clinician Review & Approval Workflow")
@@ -971,11 +1306,24 @@ with tab_review:
         st.markdown("---")
         st.markdown("#### 🩺 Clinician Decision")
 
+        generated_recommendation_text = _active_recommendation_text(active_source, active_result)
+        prior_review = st.session_state.reviewed_recommendations.get(corr_id) or {}
+        review_notes_key = f"clinical_review_notes_{corr_id}"
+        revised_summary_key = f"clinical_revised_summary_{corr_id}"
+        final_summary_key = f"clinical_final_summary_{corr_id}"
+        if generated_recommendation_text and review_notes_key not in st.session_state:
+            st.session_state[review_notes_key] = prior_review.get("notes") or generated_recommendation_text
+        if prior_review.get("revised_summary") and revised_summary_key not in st.session_state:
+            st.session_state[revised_summary_key] = prior_review["revised_summary"]
+        if prior_review.get("revised_summary"):
+            st.session_state[final_summary_key] = prior_review["revised_summary"]
+
         reviewer_name = st.text_input("Reviewer Name / ID", value=st.session_state.get("reviewer_id", "bismita-dr"))
         review_notes = st.text_area(
             "Clinical Notes / Justification",
             placeholder="Enter your clinical assessment, modifications, or reason for rejection...",
-            height=120,
+            height=220,
+            key=review_notes_key,
         )
 
         revised_summary = None
@@ -988,6 +1336,7 @@ with tab_review:
                 "Revised Recommendation Text",
                 placeholder="Enter your modified clinical recommendation...",
                 height=150,
+                key=revised_summary_key,
             )
 
         st.markdown("---")
@@ -1007,13 +1356,17 @@ with tab_review:
                             reviewer_role=st.session_state.get("auth_role") or "CLINICIAN",
                         )
                         st.session_state.review_status = "APPROVED"
-                        _store_reviewed_text(corr_id, "APPROVED", review_notes)
+                        _store_reviewed_text(corr_id, "APPROVED", review_notes, review_notes)
+                        st.session_state[final_summary_key] = review_notes
                         _add_audit("REVIEW_APPROVED", f"reviewer={reviewer_name} corr={corr_id}", "SUCCESS")
                         st.success("✅ Recommendation **APPROVED** and logged to audit trail.")
                         st.balloons()
+                        st.rerun()
                     except Exception as e:
                         # Demo mode – log locally
                         st.session_state.review_status = "APPROVED"
+                        _store_reviewed_text(corr_id, "APPROVED", review_notes, review_notes)
+                        st.session_state[final_summary_key] = review_notes
                         _add_audit("REVIEW_APPROVED", f"reviewer={reviewer_name} corr={corr_id} [demo]", "SUCCESS")
                         st.success("✅ Recommendation **APPROVED** (demo mode – audit logged locally).")
 
@@ -1036,10 +1389,13 @@ with tab_review:
                         )
                         st.session_state.review_status = "REVISED"
                         _store_reviewed_text(corr_id, "REVISED", review_notes, revised_summary)
+                        st.session_state[final_summary_key] = revised_summary
                         _add_audit("REVIEW_REVISED", f"reviewer={reviewer_name} corr={corr_id}", "SUCCESS")
                         st.info("✏️ Recommendation **REVISED** and logged.")
                     except Exception as e:
                         st.session_state.review_status = "REVISED"
+                        _store_reviewed_text(corr_id, "REVISED", review_notes, revised_summary)
+                        st.session_state[final_summary_key] = revised_summary
                         _add_audit("REVIEW_REVISED", f"reviewer={reviewer_name} corr={corr_id} [demo]", "SUCCESS")
                         st.info("✏️ Recommendation **REVISED** (demo mode).")
 
@@ -1067,6 +1423,18 @@ with tab_review:
                             st.session_state.review_status = "REJECTED"
                             _add_audit("REVIEW_REJECTED", f"reviewer={reviewer_name} corr={corr_id} [demo]", "INFO")
                             st.warning("❌ Recommendation **REJECTED** (demo mode).")
+
+        final_review = st.session_state.reviewed_recommendations.get(corr_id) or {}
+        final_recommendation_text = st.session_state.get(final_summary_key) or final_review.get("revised_summary")
+        if final_recommendation_text:
+            st.markdown("#### Final Recommendations")
+            st.text_area(
+                "Approved / Approved Revised Recommendation",
+                value=final_recommendation_text,
+                height=180,
+                disabled=True,
+                key=f"clinical_final_recommendation_{corr_id}",
+            )
 
         if st.session_state.review_status:
             status_map = {
