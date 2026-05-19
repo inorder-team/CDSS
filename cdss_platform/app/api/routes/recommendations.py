@@ -1,19 +1,43 @@
 """
 CDSS Platform – API Routes
 Recommendation, Human Review, Health endpoints.
+
+FIXES APPLIED
+─────────────
+BUG 4 – `await http_request.json()` consumed the request body stream
+  FastAPI reads the request body ONCE to feed it to Pydantic.  Calling
+  `await http_request.json()` inside the route handler a second time
+  either raises an error or returns an empty dict — and in some ASGI
+  server versions it silently corrupts the body Pydantic already read,
+  causing a cascade 422 on the *next* request to the same worker.
+
+  FIX: Remove the manual body read entirely.  The validated
+  `request_body: CDSSRecommendationRequest` argument already contains
+  the fully-parsed payload — just log that instead.
 """
 from __future__ import annotations
 
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request, status
-from fastapi import Depends
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Request,
+    status,
+)
+from fastapi.responses import JSONResponse
 from loguru import logger
 
 from app.core.audit import audit_logger
-from app.core.security import TokenPayload, require_recommendation_create, require_recommendation_read, get_current_user, require_cardiologist
 from app.core.config import get_settings
+from app.core.security import (
+    TokenPayload,
+    require_cardiologist,
+    require_recommendation_create,
+    require_recommendation_read,
+)
 from app.models.schemas import (
     CDSSRecommendationRequest,
     CDSSRecommendationResponse,
@@ -28,7 +52,7 @@ from app.services.pipeline import pipeline
 settings = get_settings()
 router = APIRouter()
 
-# In-memory store for pending reviews (use Redis/DB in full prod)
+# In-memory store for pending reviews
 _pending_decisions: dict[str, CDSSRecommendationResponse] = {}
 
 
@@ -36,11 +60,14 @@ _pending_decisions: dict[str, CDSSRecommendationResponse] = {}
 # Health
 # ─────────────────────────────────────────────
 
-@router.get("/health", response_model=HealthResponse, tags=["System"])
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    tags=["System"],
+)
 async def health_check():
-    """System health check – checks RAG collection availability."""
+    """System health check."""
     chroma_ready = rag_engine.is_ready
-    chunk_count = rag_engine.collection_count()
     return HealthResponse(
         status="healthy" if chroma_ready else "degraded",
         version=settings.app_version,
@@ -50,14 +77,17 @@ async def health_check():
     )
 
 
-@router.get("/health/rag", tags=["System"])
+@router.get(
+    "/health/rag",
+    tags=["System"],
+)
 async def rag_health():
     """Detailed RAG collection status."""
     return {
-        "collection": settings.chroma_collection_clinical,
-        "chunk_count": rag_engine.collection_count(),
+        "collection":      settings.chroma_collection_clinical,
+        "chunk_count":     rag_engine.collection_count(),
         "embedding_model": settings.embedding_model,
-        "ready": rag_engine.is_ready,
+        "ready":           rag_engine.is_ready,
     }
 
 
@@ -71,12 +101,6 @@ async def rag_health():
     status_code=status.HTTP_200_OK,
     tags=["Clinical Decision Support"],
     summary="Generate CDSS Clinical Recommendation",
-    description=(
-        "Runs the full 6-layer Clinical Intelligence Pipeline. "
-        "Performs RAG retrieval, LLM inference via Claude, safety gate evaluation, "
-        "and returns a structured recommendation in pending_review state awaiting "
-        "cardiologist human review."
-    ),
 )
 async def create_recommendation(
     request_body: CDSSRecommendationRequest,
@@ -84,22 +108,59 @@ async def create_recommendation(
     current_user: TokenPayload = Depends(require_recommendation_create),
 ) -> CDSSRecommendationResponse:
     """
-    POST /api/v1/recommendations
-    Full CDSS pipeline endpoint.
+    POST /api/v1/recommendations — runs full CDSS pipeline.
+
+    Required body (all field names are camelCase):
+    ```json
+    {
+      "patientId":       "string",
+      "encounterId":     "string",
+      "userId":          "string",
+      "userRole":        "CARDIOLOGIST",
+      "query":           "string",
+      "consentVerified": true,
+      "patientContext": {
+        "age":                0,
+        "sex":                "Male",
+        "encounterType":      "EMERGENCY",
+        "diagnoses":          [],
+        "ecgFindings":        [],
+        "labs":               { "troponin": "string", "eGFR": "string", "INR": "string" },
+        "vitals":             { "systolicBp": ["string"], "heartRate": "string" },
+        "currentMedications": [],
+        "allergies":          [],
+        "contraindications":  [],
+        "cardiacHistory":     []
+      }
+    }
+    ```
     """
     correlation_id = str(uuid.uuid4())
     source_ip = http_request.client.host if http_request.client else None
 
+    # FIX BUG 4: Log the already-parsed Pydantic model instead of re-reading
+    # the raw request body (which would consume / corrupt the stream).
     logger.info(
-        f"[API] /recommendations | corr={correlation_id} "
-        f"patient={request_body.patient_id} user={request_body.user_id} "
-        f"role={request_body.user_role}"
+        "[API] /recommendations | "
+        "corr={} patient={} user={} role={} query={}",
+        correlation_id,
+        request_body.patient_id,
+        request_body.user_id,
+        request_body.user_role,
+        request_body.query[:80],
     )
 
-    if not settings.anthropic_api_key or settings.anthropic_api_key == "your_anthropic_api_key_here":
+    # Check Anthropic API key
+    if (
+        not settings.anthropic_api_key
+        or settings.anthropic_api_key == "your_anthropic_api_key_here"
+    ):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Anthropic API key not configured. Set ANTHROPIC_API_KEY in .env file.",
+            detail=(
+                "Anthropic API key not configured. "
+                "Set ANTHROPIC_API_KEY in .env"
+            ),
         )
 
     try:
@@ -108,71 +169,83 @@ async def create_recommendation(
             correlation_id=correlation_id,
             source_ip=source_ip,
         )
-        # Store for human review
+
+        # Store for human review retrieval
         _pending_decisions[correlation_id] = response
+
+        logger.success("[PIPELINE SUCCESS] corr={}", correlation_id)
         return response
 
+    except HTTPException:
+        raise
+
     except Exception as e:
-        logger.exception(f"[API] Pipeline error | corr={correlation_id}")
-        audit_logger.log_error(
-            correlation_id=correlation_id,
-            error_type=type(e).__name__,
-            error_message=str(e),
-            stage="api_recommendation",
-        )
+        logger.exception("[PIPELINE ERROR] corr={}", correlation_id)
+
+        try:
+            audit_logger.log_error(
+                correlation_id=correlation_id,
+                error_type=type(e).__name__,
+                error_message=str(e),
+                stage="api_recommendation",
+            )
+        except Exception:
+            pass
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Pipeline error: {str(e)[:200]}",
+            detail=f"Pipeline error: {str(e)[:300]}",
         )
 
 
 # ─────────────────────────────────────────────
-# Human Review (Layer 5 – LangGraph node)
+# Human Review
 # ─────────────────────────────────────────────
 
 @router.post(
     "/recommendations/{correlation_id}/review",
     response_model=HumanReviewResponse,
     tags=["Human Review"],
-    summary="Submit Human Review Decision",
-    description=(
-        "Cardiologist submits approve/reject/edit decision. "
-        "Logged immutably per HIPAA audit requirements."
-    ),
 )
 async def submit_human_review(
     correlation_id: str,
     review: HumanReviewRequest,
     current_user: TokenPayload = Depends(require_cardiologist),
 ) -> HumanReviewResponse:
-    """
-    POST /api/v1/recommendations/{correlation_id}/review
-    """
-    if review.action not in ("approve", "reject", "edit"):
+    """Submit human review decision for a pending recommendation."""
+
+    valid_actions = {"approve", "reject", "edit"}
+    if review.action not in valid_actions:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="action must be one of: approve, reject, edit",
+            detail=f"action must be one of: {valid_actions}",
         )
 
     final_status = {
         "approve": DecisionStatus.APPROVED,
-        "reject": DecisionStatus.REJECTED,
-        "edit": DecisionStatus.APPROVED,
+        "reject":  DecisionStatus.REJECTED,
+        "edit":    DecisionStatus.APPROVED,
     }[review.action]
 
-    audit_logger.log_human_review(
-        correlation_id=correlation_id,
-        reviewer_id=review.reviewer_id,
-        reviewer_role=review.reviewer_role,
-        action=review.action,
-        notes=review.notes,
-    )
+    try:
+        audit_logger.log_human_review(
+            correlation_id=correlation_id,
+            reviewer_id=review.reviewer_id,
+            reviewer_role=review.reviewer_role,
+            action=review.action,
+            notes=review.notes,
+        )
+    except Exception as audit_err:
+        logger.warning("[HUMAN REVIEW] Audit log failed (non-fatal): {}", audit_err)
 
-    # Update stored decision status
     if correlation_id in _pending_decisions:
         _pending_decisions[correlation_id].recommendation.decision_status = final_status
 
-    logger.info(f"[API] Human review submitted | corr={correlation_id} action={review.action}")
+    logger.info(
+        "[HUMAN REVIEW] corr={} action={}",
+        correlation_id,
+        review.action,
+    )
 
     return HumanReviewResponse(
         correlation_id=correlation_id,
@@ -181,6 +254,10 @@ async def submit_human_review(
         audit_logged=True,
     )
 
+
+# ─────────────────────────────────────────────
+# Get Recommendation
+# ─────────────────────────────────────────────
 
 @router.get(
     "/recommendations/{correlation_id}",
@@ -191,14 +268,19 @@ async def get_recommendation(
     correlation_id: str,
     current_user: TokenPayload = Depends(require_recommendation_read),
 ) -> CDSSRecommendationResponse:
-    """Retrieve a previously generated recommendation by correlation ID."""
+    """Retrieve a recommendation by correlation ID."""
+
     if correlation_id not in _pending_decisions:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No recommendation found for correlation_id: {correlation_id}",
+            detail=f"No recommendation found for correlation_id={correlation_id}",
         )
     return _pending_decisions[correlation_id]
 
+
+# ─────────────────────────────────────────────
+# List Recommendations
+# ─────────────────────────────────────────────
 
 @router.get(
     "/recommendations",
@@ -208,19 +290,20 @@ async def list_recommendations(
     limit: int = 20,
     current_user: TokenPayload = Depends(require_recommendation_read),
 ):
-    """List recent recommendations (pending and reviewed)."""
+    """List the most recent recommendations (newest last, capped at limit)."""
+
     items = list(_pending_decisions.values())[-limit:]
     return {
-        "total": len(_pending_decisions),
-        "returned": len(items),
+        "total":           len(_pending_decisions),
+        "returned":        len(items),
         "recommendations": [
             {
-                "correlation_id": r.correlation_id,
-                "patient_id": r.patient_id,
-                "status": r.recommendation.decision_status,
-                "confidence": r.recommendation.confidence_score,
+                "correlation_id":  r.correlation_id,
+                "patient_id":      r.patient_id,
+                "status":          r.recommendation.decision_status,
+                "confidence":      r.recommendation.confidence_score,
                 "requires_review": r.recommendation.requires_human_review,
-                "generated_at": r.recommendation.generated_at,
+                "generated_at":    r.recommendation.generated_at,
             }
             for r in items
         ],

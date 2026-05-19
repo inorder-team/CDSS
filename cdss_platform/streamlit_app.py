@@ -341,7 +341,7 @@ def _post_rag(payload: dict, token: Optional[str]) -> dict:
     headers = {}
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    resp = requests.post(RAG_ENDPOINT, json=payload, headers=headers, timeout=60)
+    resp = requests.post(RAG_ENDPOINT, json=payload, headers=headers, timeout=120)
     resp.raise_for_status()
     return resp.json()
 
